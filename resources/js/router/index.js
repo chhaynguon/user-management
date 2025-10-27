@@ -6,10 +6,17 @@ const router = createRouter({
     routes: [
         {
             path: "/",
+            redirect: () => {
+                const token = localStorage.getItem("token");
+                return token ? { name: "dashboard" } : { name: "login" };
+            },
+        },
+        {
+            path: "/",
             component: AppLayout,
             children: [
                 {
-                    path: "/",
+                    path: "",
                     name: "dashboard",
                     component: () => import("@/views/Dashboard.vue"),
                     meta: { requiresAuth: true },
@@ -114,12 +121,6 @@ const router = createRouter({
             ],
         },
         {
-            path: "/landing",
-            name: "landing",
-            component: () => import("@/views/pages/Landing.vue"),
-        },
-        
-        {
             path: "/auth/login",
             name: "login",
             component: () => import("@/views/pages/auth/Login.vue"),
@@ -155,10 +156,7 @@ router.beforeEach(async (to, from, next) => {
         // optional: ensure user is loaded into store or check role quickly
         try {
             // fetch current user once per protected route navigation
-            const res = await fetch(
-                `${
-                    import.meta.env.VITE_API_URL || "http://localhost:8000"
-                }/api/auth/me`,
+            const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/auth/me`,
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,

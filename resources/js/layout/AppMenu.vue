@@ -44,17 +44,13 @@ const model = ref([
         ]
     },
     {
-        label: 'Pages',
+        label: 'Security',
         icon: 'pi pi-fw pi-briefcase',
         to: '/pages',
         items: [
+
             {
-                label: 'Landing',
-                icon: 'pi pi-fw pi-globe',
-                to: '/landing'
-            },
-            {
-                label: 'Settings',
+                label: 'Setting',
                 icon: 'pi pi-fw pi-cog',
                 items: [
                     {

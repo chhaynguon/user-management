@@ -6,8 +6,8 @@
 </head>
 
 <body>
-    <div id="app">
-        <h1>Loading page...</h1>
+    <div id="app" class="m-auto">
+        <h1 class="text-center">Loading page...</h1>
     </div>
 </body>
 

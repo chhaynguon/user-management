@@ -4,39 +4,54 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
 import api from '@/service/api';
+import UserService from '@/service/UserService';
 const name = ref('');
 const email = ref('');
 const password = ref('');
 const checked = ref(false);
 const toast = useToast();
 const router = useRouter();
-const register = async () => {
-    try {
-        const res = await api.post('/auth/register', {
-            name: name.value,
-            email: email.value,
-            password: password.value
-        });
+async function register() {
+    submitted.value = true;
 
-        toast.add({
-            severity: 'success',
-            summary: 'Registered',
-            detail: res.data.message,
-            life: 3000
-        });
-        console.log(res)
-        router.push({ name: 'login' });
-    } catch (error) {
-        console.error(error);
-        const detail = error.response?.data?.message || 'Please try again later';
-        toast.add({
-            severity: 'error',
-            summary: 'Registration Failed',
-            detail,
-            life: 4000,
-        });
+    if (user.value.name?.trim() && user.value.email?.trim() && user.value.password?.trim()) {
+        try {
+            // Create new user
+            const res = await UserService.create({
+                name: user.value.name,
+                email: user.value.email,
+                password: user.value.password,
+                password_confirmation: user.value.password, // Required for Laravel 'confirmed'
+                role: user.value.role || 'user', // default role
+            });
+
+            // Add the newly created user to the list
+            users.value.push(res.data);
+
+            toast.add({
+                severity: 'success',
+                summary: 'Success',
+                detail: 'Created successful',
+                life: 3000
+            });
+
+            // Reset form
+            userDialog.value = false;
+            user.value = {};
+            submitted.value = false;
+            router.push({ name: 'login' })
+
+        } catch (error) {
+            console.error(error);
+            toast.add({
+                severity: 'error',
+                summary: 'Error',
+                detail: error.response?.data?.message || 'Failed to create account',
+                life: 3000
+            });
+        }
     }
-};
+}
 
 </script>
 
@@ -72,7 +87,7 @@ const register = async () => {
                         <label for="name" class="block text-surface-900 text-xl font-medium mb-2">Username</label>
                         <InputText id="name" type="text" placeholder="Username" class="w-full md:w-120 mb-8"
                             v-model="name" />
-                        <label for="email1" class="block text-surface-900 text-xl font-medium mb-2">Email</label>
+                        <label for="email" class="block text-surface-900 text-xl font-medium mb-2">Email</label>
                         <InputText id="email1" type="text" placeholder="Email address" class="w-full md:w-120 mb-8"
                             v-model="email" />
 

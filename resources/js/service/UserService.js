@@ -1,8 +1,9 @@
-import axios from "axios"
-const baseURL = '/users';
+import api from "./api"
 
 export default{
-    findAll:() => {
-        return axios.get(`${baseURL}`)
-    }
+    findAll:() => api.get('/users'),
+    findOne:(id) => api.get(`/users/${id}`),
+    create:(data) => api.post('/users', data),
+    update:(id, data) => api.put(`/users/${id}`, data),
+    delete:(id) => api.delete(`/users/${id}`)
 }
