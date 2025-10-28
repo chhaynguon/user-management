@@ -7,9 +7,7 @@ Route::get('/', function () {
     return view('app');
 })->name('login');
 
-Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/{any}', function () {
+Route::get('/{any}', function () {
     return view('app');
 })->where('any', '.*');
-});
 

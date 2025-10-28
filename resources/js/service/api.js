@@ -1,14 +1,8 @@
 import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-
 const api = axios.create({
-    baseURL: `${API_URL}/api`,
-    headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-    },
-    withCredentials: false, // using Bearer tokens here
+    baseURL: import.meta.env.VITE_API_URL + "/api",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
 });
 
 // attach token automatically

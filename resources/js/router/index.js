@@ -1,4 +1,5 @@
 import AppLayout from "@/layout/AppLayout.vue";
+import AuthService from "@/service/AuthService";
 import { createRouter, createWebHistory } from "vue-router";
 
 const router = createRouter({
@@ -151,37 +152,27 @@ router.beforeEach(async (to, from, next) => {
     const token = localStorage.getItem("token");
 
     if (to.meta.requiresAuth) {
-        if (!token) return next({ name: "login" });
+        if (!token) return redirect({ name: "login" });
 
         // optional: ensure user is loaded into store or check role quickly
         try {
             // fetch current user once per protected route navigation
-            const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/auth/me`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        Accept: "application/json",
-                    },
-                }
-            );
-            if (!res.ok) throw new Error("not auth");
-            const user = await res.json();
-
+            const res = AuthService.me(token);
+            window.currentUser = res.data;
+            next();
             // admin check
             if (to.meta.requiresAdmin && user.role !== "admin") {
-                return next({ name: "dashboard" }); // or access denied page
+                return redirect({ name: "dashboard" }); // or access denied page
             }
 
             // attach user to global (optional) window for quick access
             window.currentUser = user;
-            return next();
         } catch (e) {
             localStorage.removeItem("token");
-            return next({ name: "login" });
+            return redirect({ name: "login" });
         }
     }
-
-    next();
+    next()
 });
 
 export default router;

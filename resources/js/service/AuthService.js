@@ -11,16 +11,17 @@ export default {
         return api.post("/auth/logout");
     },
     me(token) {
-        return fetch(
-            `${
-                import.meta.env.VITE_API_URL || "http://localhost:8000"
-            }/api/auth/me`,
+        return (
+            api.get("/auth/me"),
             {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     Accept: "application/json",
                 },
             }
-        ).then((res) => res.json());
+        );
+    },
+    findAll() {
+        return api.get("/users");
     },
 };

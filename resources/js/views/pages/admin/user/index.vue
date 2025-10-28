@@ -4,22 +4,31 @@ import { onMounted, ref } from 'vue';
 import UserService from '@/service/UserService';
 import { useToast } from 'primevue';
 import { useRoute } from 'vue-router';
+import axios from 'axios';
+
 const router = useRoute();
 const toast = useToast();
 const users = ref([]);
-const user = ref({})
-const deleteUserDialog = ref(false)
-const deleteUsersDialog = ref(false)
-const userDialog = ref(false)
+const user = ref();
+const deleteUserDialog = ref(false);
+const deleteUsersDialog = ref(false);
+const userDialog = ref(false);
 const dt = ref();
 const selectedUsers = ref();
 const submitted = ref(false)
 
-onMounted(() => {
-    UserService.findAll().then(res => {
+onMounted(async () => {
+    const res = await UserService.findAll();
+    if (Array.isArray(res.data)) {
         users.value = res.data;
-    });
+        console.log(users.value)
+    } else {
+        console.error("API did not return an array:", res.data);
+        users.value = [];
+    }
+
 });
+
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
@@ -123,6 +132,7 @@ function deleteUser() {
     try {
         UserService.delete(user.value.id); // make sure UserService has a delete method
         users.value = users.value.filter(u => u.id !== user.value.id);
+        refresh();
         toast.add({ severity: 'success', summary: 'Successful', detail: 'User Deleted', life: 3000 });
         deleteUserDialog.value = false;
         user.value = {};

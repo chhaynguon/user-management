@@ -10,17 +10,33 @@ const password = ref('');
 const checked = ref(false);
 const toast = useToast();
 
+// const login = async () => {
+//     try {
+//         const res = await AuthService.login(email.value, password.value);
+//         localStorage.setItem('token', res.data.token);
+//         router.push({ name: 'dashboard' });
+//         toast.add({ severity: 'success', summary: 'Successful', detail: 'Login Successful', life: 3000 });
+//     } catch (e) {
+//         e.response?.data?.message || 'Login failed';
+//         toast.add({ severity: 'error', summary: 'Failed', detail: 'Login failed', life: 4000 });
+//     }
+// };
+
 const login = async () => {
     try {
         const res = await AuthService.login(email.value, password.value);
         localStorage.setItem('token', res.data.token);
-        router.push({ name: 'dashboard' });
+
         toast.add({ severity: 'success', summary: 'Successful', detail: 'Login Successful', life: 3000 });
+
+        await router.push({ name: 'dashboard' });
     } catch (e) {
-        e.response?.data?.message || 'Login failed';
-        toast.add({ severity: 'error', summary: 'Failed', detail: 'Login failed', life: 4000 });
+        const msg = e.response?.data?.message || 'Login failed';
+        console.error(msg);
+        toast.add({ severity: 'error', summary: 'Failed', detail: msg, life: 4000 });
     }
 };
+
 
 </script>
 

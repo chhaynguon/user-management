@@ -12,7 +12,7 @@ class UserController extends Controller
 {
     public function index()
     {
-        return response()->json(User::all(), 200);
+        return response(User::all(), 200);
     }
 
     public function show($id)
