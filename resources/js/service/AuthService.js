@@ -11,8 +11,7 @@ export default {
         return api.post("/auth/logout");
     },
     me(token) {
-        return (
-            api.get("/auth/me"),
+        return api.get("/auth/me",
             {
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -20,8 +19,5 @@ export default {
                 },
             }
         );
-    },
-    findAll() {
-        return api.get("/users");
     },
 };

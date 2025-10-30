@@ -50,9 +50,8 @@ class AuthController extends Controller
         // delete old tokens (optional)
         $user->tokens()->delete();
 
-        $token = $user->createToken('api-token')->plainTextToken;
-
-        return response()->json(['user' => $user, 'token' => $token]);
+        $token = $user->createToken('auth_token')->plainTextToken;
+        return response()->json(['token' => $token, 'user' => $user]);
     }
 
     // logout

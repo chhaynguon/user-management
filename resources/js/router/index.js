@@ -111,8 +111,8 @@ const router = createRouter({
                 {
                     path: "pages/users",
                     name: "user",
-                    component: () =>
-                        import("@/views/pages/admin/user/index.vue"),
+                    component: () => import("@/views/pages/admin/user/index.vue"),
+                    meta: { requiresAdmin: true }
                 },
                 {
                     path: "documentation",
@@ -152,27 +152,28 @@ router.beforeEach(async (to, from, next) => {
     const token = localStorage.getItem("token");
 
     if (to.meta.requiresAuth) {
-        if (!token) return redirect({ name: "login" });
+        if (!token) return next({ name: "login" });
 
         // optional: ensure user is loaded into store or check role quickly
         try {
             // fetch current user once per protected route navigation
             const res = AuthService.me(token);
-            window.currentUser = res.data;
-            next();
+            const user = res.data;
+
+            //store globally
+            window.currentUser = user;
             // admin check
             if (to.meta.requiresAdmin && user.role !== "admin") {
-                return redirect({ name: "dashboard" }); // or access denied page
+                return next({ name: "dashboard" }); // or access denied page
             }
-
-            // attach user to global (optional) window for quick access
-            window.currentUser = user;
-        } catch (e) {
+            return next();
+        } catch (err) {
             localStorage.removeItem("token");
-            return redirect({ name: "login" });
+            return next({ name: "login" });
         }
+    } else {
+        return next();
     }
-    next()
 });
 
 export default router;

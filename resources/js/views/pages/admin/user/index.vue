@@ -3,10 +3,7 @@ import { FilterMatchMode } from '@primevue/core/api';
 import { onMounted, ref } from 'vue';
 import UserService from '@/service/UserService';
 import { useToast } from 'primevue';
-import { useRoute } from 'vue-router';
-import axios from 'axios';
 
-const router = useRoute();
 const toast = useToast();
 const users = ref([]);
 const user = ref();
@@ -14,20 +11,23 @@ const deleteUserDialog = ref(false);
 const deleteUsersDialog = ref(false);
 const userDialog = ref(false);
 const dt = ref();
-const selectedUsers = ref();
-const submitted = ref(false)
+const selectedUsers = ref([]);
+const submitted = ref(false);
 
 onMounted(async () => {
-    const res = await UserService.findAll();
-    if (Array.isArray(res.data)) {
-        users.value = res.data;
-        console.log(users.value)
-    } else {
-        console.error("API did not return an array:", res.data);
-        users.value = [];
-    }
-
+    await fetchUsers();
 });
+
+const fetchUsers = async () => {
+    try {
+        const res = await UserService.findAll();
+        console.log(res)
+        users.value = res.data;
+        console.log("Users:", users.value)
+    } catch (err) {
+        console.error('Failed to fetch users:', err);
+    }
+}
 
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS }
@@ -177,8 +177,8 @@ const refresh = async () => {
 
 
 
-function getStatusLabel(status) {
-    switch (status) {
+function getStatusLabel(role) {
+    switch (role) {
         case 'admin':
             return 'success';
 
@@ -236,11 +236,10 @@ const optionRole = ref([
                         </IconField>
                     </div>
                 </template>
-
                 <Column selectionMode="multiple" style="width: 3rem" :exportable="false"></Column>
                 <Column field="id" header="ID" sortable style="min-width: 12rem"></Column>
                 <Column field="name" header="Name" sortable style="min-width: 16rem"></Column>
-                <Column field="accountStatus" header="Status" sortable style="min-width: 12rem">
+                <Column field="role" header="Status" sortable style="min-width: 12rem">
                     <template #body="slotProps">
                         <Tag :value="slotProps.data.role" :severity="getStatusLabel(slotProps.data.role)" />
                     </template>
