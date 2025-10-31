@@ -3,6 +3,7 @@ import { FilterMatchMode } from '@primevue/core/api';
 import { onMounted, ref } from 'vue';
 import UserService from '@/service/UserService';
 import { useToast } from 'primevue';
+import router from '@/router';
 
 const toast = useToast();
 const users = ref([]);
@@ -124,9 +125,6 @@ async function saveUser() {
         }
     }
 }
-
-
-
 
 function deleteUser() {
     try {
@@ -276,7 +274,7 @@ const optionRole = ref([
                 </div>
                 <div>
                     <label for="role" class="block font-bold mb-3">Role</label>
-                    <Dropdown v-model="user.role" :options="optionRole" optionLabel="label" optionValue="value"
+                    <Select v-model="user.role" :options="optionRole" optionLabel="label" optionValue="value"
                         placeholder="Select Role" />
                 </div>
             </div>

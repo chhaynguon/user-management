@@ -12,8 +12,19 @@ class UserController extends Controller
 {
     public function index()
     {
-        return response()->json(User::all());
+        $users = User::all()->map(function ($user) {
+            return [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role, // just string
+            ];
+        });
+
+        return response()->json($users);
     }
+
+
 
     public function show($id)
     {
@@ -69,5 +80,24 @@ class UserController extends Controller
 
         $user->delete();
         return response()->json(['message' => 'User deleted'], 200);
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'email' => 'sometimes|email|unique:users,email,' . $user->id,
+            'password' => 'nullable|string|min:6|confirmed',
+        ]);
+
+        if (isset($validated['password'])) {
+            $validated['password'] = bcrypt($validated['password']);
+        }
+
+        $user->update($validated);
+
+        return response()->json(['message' => 'Profile updated successfully.', 'user' => $user]);
     }
 }

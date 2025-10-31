@@ -111,8 +111,9 @@ const router = createRouter({
                 {
                     path: "pages/users",
                     name: "user",
-                    component: () => import("@/views/pages/admin/user/index.vue"),
-                    meta: { requiresAdmin: true }
+                    component: () =>
+                        import("@/views/pages/admin/user/index.vue"),
+                    meta: { requiresAdmin: true },
                 },
                 {
                     path: "documentation",
@@ -151,6 +152,10 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
     const token = localStorage.getItem("token");
 
+    const isAuthenticated = !!localStorage.getItem("token"); // example
+    if (to.meta.requiresAuth && !isAuthenticated)
+        return next({ name: "login" });
+
     if (to.meta.requiresAuth) {
         if (!token) return next({ name: "login" });
 
@@ -159,9 +164,10 @@ router.beforeEach(async (to, from, next) => {
             // fetch current user once per protected route navigation
             const res = AuthService.me(token);
             const user = res.data;
-
             //store globally
             window.currentUser = user;
+            localStorage.setItem("user", JSON.stringify(user));
+
             // admin check
             if (to.meta.requiresAdmin && user.role !== "admin") {
                 return next({ name: "dashboard" }); // or access denied page

@@ -1,4 +1,8 @@
 <script setup>
+import InputText from 'primevue/inputtext';
+import Password from 'primevue/password';
+import Checkbox from 'primevue/checkbox';
+import Button from 'primevue/button';
 import FloatingConfigurator from '@/components/FloatingConfigurator.vue';
 import AuthService from '@/service/AuthService';
 import { ref } from 'vue';
@@ -13,15 +17,29 @@ const toast = useToast();
 const login = async () => {
     try {
         const res = await AuthService.login(email.value, password.value);
-        localStorage.setItem("token", res.data.token);
-        console.log(res.data.token)
-        router.push({ name: "dashboard" });
+        const token = res.data.token;
+        localStorage.setItem("token", token);
+        console.log(token)
+
+        const meRes = await AuthService.me(token);
+        const user = meRes.data;
+        localStorage.setItem("user", JSON.stringify(user));
         toast.add({ severity: 'success', summary: 'Successful', detail: 'Login Successful', life: 3000 });
+
+        if (user.role === "admin") {
+            router.push({ name: "user" });
+        } else {
+            router.push({ name: "dashboard" })
+        }
+        
     } catch (e) {
-        e.response?.data?.message || 'Login failed';
-        toast.add({ severity: 'error', summary: 'Failed', detail: 'Login failed', life: 4000 });
+        toast.add({ severity: 'error', summary: 'Failed', detail: e.response?.data?.message || 'Login failed', life: 4000 });
     }
 };
+
+if (checked.value) {
+    localStorage.setItem('remember', 'true');
+}
 
 
 </script>
