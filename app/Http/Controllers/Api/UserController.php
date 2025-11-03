@@ -12,16 +12,23 @@ class UserController extends Controller
 {
     public function index()
     {
-        $users = User::all()->map(function ($user) {
+        try{
+            $users = User::all()->map(function ($user) {
             return [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'role' => $user->role, // just string
+                'role' => (string) $user->role, // just string
             ];
         });
 
         return response()->json($users);
+        }catch(\Exception $e){
+            return response()->json([
+                'error'=> 'Failed to fetch users',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
 

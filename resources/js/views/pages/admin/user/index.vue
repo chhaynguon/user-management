@@ -288,7 +288,7 @@ const optionRole = ref([
         <Dialog v-model:visible="deleteUserDialog" :style="{ width: '450px' }" header="Confirm" :modal="true">
             <div class="flex items-center gap-4">
                 <i class="pi pi-exclamation-triangle !text-3xl" />
-                <span v-if="users">Are you sure you want to delete <b>{{ users.name }}</b>?</span>
+                <span v-if="user">Are you sure you want to delete <b>{{ user.name }}</b>?</span>
             </div>
             <template #footer>
                 <Button label="No" icon="pi pi-times" text @click="deleteUserDialog = false" />
@@ -299,7 +299,7 @@ const optionRole = ref([
         <Dialog v-model:visible="deleteUsersDialog" :style="{ width: '450px' }" header="Confirm" :modal="true">
             <div class="flex items-center gap-4">
                 <i class="pi pi-exclamation-triangle !text-3xl" />
-                <span v-if="users">Are you sure you want to delete the selected users?</span>
+                <span v-if="user">Are you sure you want to delete the selected users?</span>
             </div>
             <template #footer>
                 <Button label="No" icon="pi pi-times" text @click="deleteUserDialog = false" />

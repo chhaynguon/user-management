@@ -10,14 +10,7 @@ export default {
     logout() {
         return api.post("/auth/logout");
     },
-    me(token) {
-        return api.get("/auth/me",
-            {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    Accept: "application/json",
-                },
-            }
-        );
+    me() {
+        return api.get("/auth/me");
     },
 };

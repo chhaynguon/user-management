@@ -20,9 +20,7 @@ const login = async () => {
         const token = res.data.token;
         localStorage.setItem("token", token);
         console.log(token)
-
-        const meRes = await AuthService.me(token);
-        const user = meRes.data;
+        const user = token;
         localStorage.setItem("user", JSON.stringify(user));
         toast.add({ severity: 'success', summary: 'Successful', detail: 'Login Successful', life: 3000 });
 
