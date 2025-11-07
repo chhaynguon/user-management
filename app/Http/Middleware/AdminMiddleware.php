@@ -9,10 +9,14 @@ class AdminMiddleware
 {
     public function handle(Request $request, Closure $next)
     {
+        dd($request->user());
+        
         $user = $request->user();
+
         if (!$user || $user->role !== 'admin') {
             return response()->json(['message' => 'Access denied'], 403);
         }
+
         return $next($request);
     }
 }

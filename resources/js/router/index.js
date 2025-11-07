@@ -162,7 +162,7 @@ router.beforeEach(async (to, from, next) => {
         // optional: ensure user is loaded into store or check role quickly
         try {
             // fetch current user once per protected route navigation
-            const res = AuthService.me(token);
+            const res = await AuthService.me(token);
             const user = res.data;
             //store globally
             window.currentUser = user;
