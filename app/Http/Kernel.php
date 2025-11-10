@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Middleware;
+namespace App\Http;
 
 use Illuminate\Foundation\Http\Kernel as HttpKernel;
 
@@ -15,7 +15,6 @@ class Kernel extends HttpKernel
 
     protected $routeMiddleware = [
         'auth'  => \App\Http\Middleware\Authenticate::class,
-        'admin' => \App\Http\Middleware\AdminMiddleware::class, // admin only
-        'user'  => \App\Http\Middleware\CheckRole::class,       // normal user
+        'role'  => \App\Http\Middleware\CheckRole::class,       // normal user
     ];
 }

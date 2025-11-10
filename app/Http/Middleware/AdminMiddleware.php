@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 
 class AdminMiddleware
 {
-    public function handle(Request $request, Closure $next)
+    public function handle($request, Closure $next)
     {
         dd($request->user());
         

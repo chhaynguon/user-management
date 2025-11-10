@@ -15,7 +15,7 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 // Admin-only routes
-Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::get('/users', [UserController::class, 'index']);
     Route::get('/users/{id}', [UserController::class, 'show']);
     Route::post('/users', [UserController::class, 'store']);
@@ -24,6 +24,6 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
 });
 
 // Normal user-only routes
-Route::middleware(['auth:sanctum', 'user:user'])->group(function () {
+Route::middleware(['auth:sanctum', 'role:user'])->group(function () {
     Route::get('/profile', [UserController::class, 'updateProfile']);
 });

@@ -7,19 +7,14 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Log;
 
 class UserController extends Controller
 {
     public function index()
     {
-        try {
-            return User::all();
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Error fetching users',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+
+        return response()->json(User::all());
     }
 
 
