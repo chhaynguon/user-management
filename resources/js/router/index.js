@@ -1,17 +1,10 @@
 import AppLayout from "@/layout/AppLayout.vue";
-import AuthService from "@/service/AuthService";
 import { createRouter, createWebHistory } from "vue-router";
+import { useAuthStore } from "@/stores/auth";
 
 const router = createRouter({
     history: createWebHistory(),
     routes: [
-        {
-            path: "/",
-            redirect: () => {
-                const token = localStorage.getItem("token");
-                return token ? { name: "dashboard" } : { name: "login" };
-            },
-        },
         {
             path: "/",
             component: AppLayout,
@@ -150,36 +143,27 @@ const router = createRouter({
     ],
 });
 router.beforeEach(async (to, from, next) => {
-    const token = localStorage.getItem("token");
+    const auth = useAuthStore();
+    const isAuthenticated = !!auth.token;
 
-    const isAuthenticated = !!localStorage.getItem("token"); // example
-    if (to.meta.requiresAuth && !isAuthenticated)
+    if (to.meta.requiresAuth && !isAuthenticated) {
+        auth.logout();
         return next({ name: "login" });
+    }
 
-    if (to.meta.requiresAuth) {
-        if (!token) return next({ name: "login" });
-
-        // optional: ensure user is loaded into store or check role quickly
+    // Optional: admin check
+    if (to.meta.requiresAdmin) {
         try {
-            // fetch current user once per protected route navigation
-            const res = await AuthService.me(token);
-            const user = res.data;
-            //store globally
-            window.currentUser = user;
-            localStorage.setItem("user", JSON.stringify(user));
-
-            // admin check
-            if (to.meta.requiresAdmin && user.role !== "admin") {
-                return next({ name: "dashboard" }); // or access denied page
+            if (!auth.user) await auth.fetchUser(); // fetch only if not loaded
+            if (auth.user.role !== "admin") {
+                return next({ name: "dashboard" }); // redirect if not admin
             }
-            return next();
         } catch (err) {
-            localStorage.removeItem("token");
+            auth.logout();
             return next({ name: "login" });
         }
-    } else {
-        return next();
     }
+    next();
 });
 
 export default router;

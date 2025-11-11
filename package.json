@@ -23,6 +23,8 @@
         "@primevue/core": "^4.4.1",
         "@tailwindcss/vite": "^4.1.15",
         "chart.js": "^4.5.1",
+        "pinia": "^3.0.4",
+        "pinia-plugin-persistedstate": "^4.7.1",
         "primeflex": "^4.0.0",
         "primeicons": "^7.0.0",
         "primevue": "^4.4.1",

@@ -8,6 +8,9 @@ import AuthService from '@/service/AuthService';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
+import { useAuthStore } from '@/stores/auth';
+
+const auth = useAuthStore()
 const router = useRouter();
 const email = ref("");
 const password = ref("");
@@ -17,16 +20,12 @@ const toast = useToast();
 const login = async () => {
     try {
         const res = await AuthService.login(email.value, password.value);
-        const token = res.data.token;
-        console.log(token)
-        const user = res.data.user; // get user object
-
-        localStorage.setItem("token", token);
-        localStorage.setItem("user", JSON.stringify(user));
+        auth.token = res.data.token;
+        auth.user = res.data.user; // get user object
 
         toast.add({ severity: 'success', summary: 'Successful', detail: 'Login Successful', life: 3000 });
 
-        if (user.role === "admin") {
+        if (auth.user.role === "admin") {
             router.push({ name: "dashboard" });
         } else {
             router.push({ name: "dashboard" });
