@@ -1,17 +1,25 @@
+import AuthService from "@/service/AuthService";
 import { defineStore } from "pinia";
 
 export const useAuthStore = defineStore("auth", {
-    id: " auth",
+    id: "auth",
     state: () => ({
         token: null,
         user: null,
     }),
     actions: {
-        login(token, user) {
+        async login(token, user) {
             this.token = token;
             this.user = user;
         },
-        logout() {
+        async logout() {
+            try {
+                await AuthService.logout();
+            } catch (e) {
+                console.warn(
+                    "Logout request failed, token might already be invalid."
+                );
+            }
             this.token = null;
             this.user = null;
         },
@@ -19,6 +27,5 @@ export const useAuthStore = defineStore("auth", {
     persist: {
         key: "auth",
         storage: sessionStorage,
-    
-    }
+    },
 });

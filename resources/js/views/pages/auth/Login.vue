@@ -22,6 +22,7 @@ const login = async () => {
         const res = await AuthService.login(email.value, password.value);
         auth.token = res.data.token;
         auth.user = res.data.user; // get user object
+        console.log(auth.token)
 
         toast.add({ severity: 'success', summary: 'Successful', detail: 'Login Successful', life: 3000 });
 

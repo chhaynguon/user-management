@@ -8,12 +8,7 @@ export default {
         return api.post("/auth/register", payload);
     },
     logout() {
-        return api
-            .post("/auth/logout")
-            .finally(
-                () => localStorage.removeItem("token"),
-                localStorage.removeItem("user")
-            );
+        return api.post("/auth/logout");
     },
     me() {
         return api.get("/auth/me");

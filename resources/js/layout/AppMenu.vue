@@ -3,6 +3,18 @@ import { ref } from 'vue';
 
 import AppMenuItem from './AppMenuItem.vue';
 
+import { useAuthStore } from "@/stores/auth";
+import { useRouter } from "vue-router";
+
+const auth = useAuthStore();
+const router = useRouter();
+
+const handleLogout = async () => {
+    await auth.logout(); // clears token & user
+    router.push({ name: "login" }); // redirect to login page
+};
+
+
 const model = ref([
     {
         label: 'Home',
@@ -66,7 +78,7 @@ const model = ref([
                     {
                         label: 'Logout',
                         icon: 'pi pi-fw pi-sign-out',
-                        to: '/auth/login'
+                        command: handleLogout,
                     },
                 ]
             },

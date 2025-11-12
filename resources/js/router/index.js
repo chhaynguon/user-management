@@ -106,7 +106,7 @@ const router = createRouter({
                     name: "user",
                     component: () =>
                         import("@/views/pages/admin/user/index.vue"),
-                    meta: { requiresAdmin: true },
+                    meta: { requiresAdmin: true, requiresAuth: true },
                 },
                 {
                     path: "documentation",
@@ -144,22 +144,24 @@ const router = createRouter({
 });
 router.beforeEach(async (to, from, next) => {
     const auth = useAuthStore();
-    const isAuthenticated = !!auth.token;
 
-    if (to.meta.requiresAuth && !isAuthenticated) {
-        auth.logout();
+    if ((to.name === "login" || to.name === "register") && auth.token) {
+        return next({ name: "dashboard" });
+    }
+
+    if (to.meta.requiresAuth && !auth.token) {
         return next({ name: "login" });
     }
 
-    // Optional: admin check
     if (to.meta.requiresAdmin) {
         try {
-            if (!auth.user) await auth.fetchUser(); // fetch only if not loaded
+            if (!auth.user) await auth.fetchUser();
+
             if (auth.user.role !== "admin") {
-                return next({ name: "dashboard" }); // redirect if not admin
+                return next({ name: "dashboard" });
             }
         } catch (err) {
-            auth.logout();
+            await auth.logout();
             return next({ name: "login" });
         }
     }
