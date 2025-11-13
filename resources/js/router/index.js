@@ -106,7 +106,35 @@ const router = createRouter({
                     name: "user",
                     component: () =>
                         import("@/views/pages/admin/user/index.vue"),
-                    meta: { requiresAdmin: true, requiresAuth: true },
+                    meta: {  requiresAuth: true },
+                },
+                {
+                    path: "pages/permissions",
+                    name: "permission",
+                    component: () =>
+                        import("@/views/pages/admin/permission/index.vue"),
+                    meta: {  requiresAuth: true },
+                },
+                {
+                    path: "pages/roles",
+                    name: "role",
+                    component: () =>
+                        import("@/views/pages/admin/role/index.vue"),
+                    meta: {  requiresAuth: true },
+                },
+                {
+                    path: "pages/functions",
+                    name: "function",
+                    component: () =>
+                        import("@/views/pages/admin/function/index.vue"),
+                    meta: {  requiresAuth: true },
+                },
+                {
+                    path: "pages/groups",
+                    name: "group",
+                    component: () =>
+                        import("@/views/pages/admin/group/index.vue"),
+                    meta: {  requiresAuth: true },
                 },
                 {
                     path: "documentation",

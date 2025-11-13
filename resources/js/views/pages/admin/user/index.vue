@@ -3,7 +3,6 @@ import { FilterMatchMode } from '@primevue/core/api';
 import { onMounted, ref } from 'vue';
 import UserService from '@/service/UserService';
 import { useToast } from 'primevue';
-import router from '@/router';
 
 const toast = useToast();
 const users = ref([]);
@@ -76,8 +75,6 @@ async function saveUser() {
                     name: user.value.name,
                     email: user.value.email,
                     password: user.value.password,
-                    password_confirmation: user.value.password, // Required for Laravel 'confirmed'
-                    role: user.value.role || 'user', // default role
                 });
 
                 // Add the newly created user to the list
@@ -95,7 +92,6 @@ async function saveUser() {
                     name: user.value.name,
                     email: user.value.email,
                     password: user.value.password,
-                    role: user.value.role,
                 });
 
                 const index = findIndexById(user.value.id);
@@ -173,33 +169,6 @@ const refresh = async () => {
     }
 }
 
-
-
-function getStatusLabel(role) {
-    switch (role) {
-        case 'admin':
-            return 'success';
-
-        case 'user':
-            return 'info';
-
-        default:
-            return null;
-    }
-}
-
-const statuses = ref([
-    { label: 'ACTIVE', value: 'active' },
-    { label: 'DISABLE', value: 'disable' },
-    { label: 'DELETE', value: 'delete' },
-    { label: 'LOCKED', value: 'locked' },
-    { label: 'BLOCKED', value: 'blocked' }
-]);
-
-const optionRole = ref([
-    { label: 'ADMIN', value: 'admin' },
-    { label: 'USER', value: 'user' },
-])
 </script>
 
 <template>
@@ -219,7 +188,7 @@ const optionRole = ref([
             </Toolbar>
 
             <DataTable ref="dt" v-model:selection="selectedUsers" :value="users" dataKey="id" :paginator="true"
-                :rows="10" :filters="filters"
+                :rows="10" :filters="filters" :globalFilterFields="['id', 'name', 'email']"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
                 :rowsPerPageOptions="[5, 10, 25]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} users">
@@ -237,11 +206,8 @@ const optionRole = ref([
                 <Column selectionMode="multiple" style="width: 3rem" :exportable="false"></Column>
                 <Column field="id" header="ID" sortable style="min-width: 12rem"></Column>
                 <Column field="name" header="Name" sortable style="min-width: 16rem"></Column>
-                <Column field="role" header="Status" sortable style="min-width: 12rem">
-                    <template #body="slotProps">
-                        <Tag :value="slotProps.data.role" :severity="getStatusLabel(slotProps.data.role)" />
-                    </template>
-                </Column>
+                <Column field="email" header="Email" sortable style="min-width: 16rem"></Column>
+                <Column field="created_at" header="Created at" sortable style="min-width: 16rem"></Column>
                 <Column :exportable="false" style="min-width: 12rem">
                     <template #body="slotProps">
                         <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editUser(slotProps.data)" />
@@ -262,21 +228,24 @@ const optionRole = ref([
                 </div>
                 <div>
                     <label for="email" class="block font-bold mb-3">Email</label>
+                    <InputText id="email" v-model.trim="user.email" required="true" autofocus
+                        :invalid="submitted && !user.email" fluid />
+                    <small v-if="submitted && !user.email" class="text-red-500">Email is required.</small>
+                </div>
+                <div>
+                    <label for="password" class="block font-bold mb-3">Password</label>
+                    <InputText id="password" v-model.trim="user.password" required="true" autofocus
+                        :invalid="submitted && !user.password" fluid />
+                    <small v-if="submitted && !user.password" class="text-red-500">Name is required.</small>
+                </div>
+                <!-- <div>
+                    <label for="email" class="block font-bold mb-3">Email</label>
                     <InputText id="email" v-model="user.email" fluid />
                 </div>
                 <div>
                     <label for="password" class="block font-bold mb-3">Password</label>
                     <InputText id="password" v-model="user.password" integeronly fluid />
-                </div>
-                <div>
-                    <label for="password_confirmation" class="block font-bold mb-3">Confirm password</label>
-                    <InputText id="password_confirmation" v-model="user.password_confirmation" integeronly fluid />
-                </div>
-                <div>
-                    <label for="role" class="block font-bold mb-3">Role</label>
-                    <Select v-model="user.role" :options="optionRole" optionLabel="label" optionValue="value"
-                        placeholder="Select Role" />
-                </div>
+                </div> -->
             </div>
 
             <template #footer>
@@ -299,10 +268,10 @@ const optionRole = ref([
         <Dialog v-model:visible="deleteUsersDialog" :style="{ width: '450px' }" header="Confirm" :modal="true">
             <div class="flex items-center gap-4">
                 <i class="pi pi-exclamation-triangle !text-3xl" />
-                <span v-if="user">Are you sure you want to delete the selected users?</span>
+                <span v-if="users">Are you sure you want to delete the selected users?</span>
             </div>
             <template #footer>
-                <Button label="No" icon="pi pi-times" text @click="deleteUserDialog = false" />
+                <Button label="No" icon="pi pi-times" text @click="deleteUsersDialog = false" />
                 <Button label="Yes" icon="pi pi-check" text @click="deleteSelectedUsers" />
             </template>
         </Dialog>

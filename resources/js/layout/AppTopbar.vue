@@ -12,7 +12,7 @@ const { toggleMenu, toggleDarkMode, isDarkTheme } = useLayout();
                 <i class="pi pi-bars"></i>
             </button>
             <router-link to="/" class="layout-topbar-logo">
-                <span>User Management</span>
+                <span class="font-bold">User Management</span>
             </router-link>
         </div>
 

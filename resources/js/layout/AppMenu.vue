@@ -49,9 +49,24 @@ const model = ref([
                 to: '/pages/users'
             },
             {
-                label: 'Stock Product',
-                icon: 'pi pi-fw pi-shopping-bag',
-                to: '/pages/crud'
+                label: 'Permission',
+                icon: 'pi pi-fw pi-key',
+                to: '/pages/permissions'
+            },
+            {
+                label: 'Role',
+                icon: 'pi pi-fw pi-lock',
+                to: '/pages/roles'
+            },
+            {
+                label: 'Function',
+                icon: 'pi pi-fw pi-wrench',
+                to: '/pages/functions'
+            },
+            {
+                label: 'Group',
+                icon: 'pi pi-fw pi-th-large',
+                to: '/pages/groups'
             },
         ]
     },
@@ -65,16 +80,16 @@ const model = ref([
                 label: 'Setting',
                 icon: 'pi pi-fw pi-cog',
                 items: [
-                    {
-                        label: 'Access Denied',
-                        icon: 'pi pi-fw pi-lock',
-                        to: '/auth/access'
-                    },
-                    {
-                        label: 'Error',
-                        icon: 'pi pi-fw pi-times-circle',
-                        to: '/auth/error'
-                    },
+                    // {
+                    //     label: 'Access Denied',
+                    //     icon: 'pi pi-fw pi-lock',
+                    //     to: '/auth/access'
+                    // },
+                    // {
+                    //     label: 'Error',
+                    //     icon: 'pi pi-fw pi-times-circle',
+                    //     to: '/auth/error'
+                    // },
                     {
                         label: 'Logout',
                         icon: 'pi pi-fw pi-sign-out',
