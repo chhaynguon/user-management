@@ -1,7 +1,7 @@
 <script setup>
 import { FilterMatchMode } from '@primevue/core/api';
 import { onMounted, ref } from 'vue';
-import FuncService from '@/service/FunctionService';
+import FuncService from '@/service/FnctionService';
 import { useToast } from 'primevue';
 
 const toast = useToast();
@@ -23,7 +23,7 @@ const fetchFns = async () => {
         const res = await FuncService.findAll();
         console.log(res)
         fns.value = res.data;
-        console.log("Fnctions:", fns.value)
+        console.log("Functions:", fns.value)
     } catch (err) {
         console.error('Failed to fetch functions:', err);
     }
@@ -188,7 +188,7 @@ const refresh = async () => {
             </Toolbar>
 
             <DataTable ref="dt" v-model:selection="selectedFns" :value="fns" dataKey="id" :paginator="true" :rows="10"
-                :filters="filters"
+                :filters="filters" :globalFilterFields="['id', 'code', 'name', 'email']"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
                 :rowsPerPageOptions="[5, 10, 25]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} functions">

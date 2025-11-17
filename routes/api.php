@@ -5,7 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\RoleController;
-use App\Http\Controllers\Api\FunctionController;
+use App\Http\Controllers\Api\FnctionController;
 use App\Http\Controllers\Api\GroupController;
 
 // Public routes
@@ -45,12 +45,12 @@ Route::prefix('roles')->group(function () {
     Route::delete('/{id}', [RoleController::class, 'destroy']);
 });
 
-Route::prefix('functions')->group(function () {
-    Route::get('/', [FunctionController::class, 'index']);
-    Route::get('/{id}', [FunctionController::class, 'show']);
-    Route::post('/', [FunctionController::class, 'store']);
-    Route::put('/{id}', [FunctionController::class, 'update']);
-    Route::delete('/{id}', [FunctionController::class, 'destroy']);
+Route::prefix('fnctions')->group(function () {
+    Route::get('/', [FnctionController::class, 'index']);
+    Route::get('/{id}', [FnctionController::class, 'show']);
+    Route::post('/', [FnctionController::class, 'store']);
+    Route::put('/{id}', [FnctionController::class, 'update']);
+    Route::delete('/{id}', [FnctionController::class, 'destroy']);
 });
 
 Route::prefix('groups')->group(function () {

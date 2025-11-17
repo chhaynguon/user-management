@@ -16,8 +16,10 @@ class CheckRole
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        if (!in_array($user->role, $roles)) {
-            return response()->json(['message' => 'Unauthorized. You do not have the required role.'], 403);
+        if (!$user->roles()->pluck('code')->intersect($roles)->count()) {
+            return response()->json([
+                'message' => 'Unauthorized. You do not have the required role.'
+            ], 403);
         }
 
         return $next($request);

@@ -7,14 +7,13 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
-use Illuminate\Support\Facades\Log;
 
 class UserController extends Controller
 {
     public function index()
     {
-
-        return response()->json(User::all());
+        $users = User::with(['groups.roles.permissions'])->get();
+        return response()->json($users);
     }
 
 
@@ -22,7 +21,7 @@ class UserController extends Controller
 
     public function show($id)
     {
-        $user = User::find($id);
+        $user = User::with(['groups.roles.permissions'])->findOrFail($id);
         if (!$user) return response()->json(['message' => 'User not found'], 404);
         return response()->json($user, 200);
     }
@@ -33,15 +32,22 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users',
             'password' => 'required|string|min:6',
-            'role' => ['required', Rule::in(['user', 'admin'])],
+            'group_codes' => 'nullable|array',
+            'group_codes.*' => 'string|exists:groups,code',
         ]);
 
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'role' => $request->role,
+            // 'role' => $request->role,
         ]);
+
+        // Attach groups if provided
+        if ($request->filled('group_codes')) {
+            $user->groups()->sync($request->group_codes);
+        }
+
 
         return response()->json($user, 201);
     }
@@ -55,7 +61,9 @@ class UserController extends Controller
             'name' => 'sometimes|string|max:255',
             'email' => ['sometimes', 'email', Rule::unique('users')->ignore($user->id)],
             'password' => 'sometimes|string|min:6',
-            'role' => ['sometimes', Rule::in(['user', 'admin'])],
+            'group_codes' => 'nullable|array',
+            'group_codes.*' => 'string|exists:groups,code',
+
         ]);
 
         if ($request->has('password')) {

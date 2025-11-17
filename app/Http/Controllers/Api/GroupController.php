@@ -2,55 +2,59 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Models\Groups;
+use App\Models\Group;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
 class GroupController extends Controller
 {
-    // List all Groups
+    // List all Group
     public function index()
     {
-        $Groups = Groups::all();
-        return response()->json($Groups);
+        $group = Group::all();
+        return response()->json($group);
     }
 
-    // Show a single Groups
+    // Show a single Group
     public function show($id)
     {
-        $Groups = Groups::findOrFail($id);
-        return response()->json($Groups);
+        $group = Group::findOrFail($id);
+        return response()->json($group);
     }
 
-    // Create new Groups
+    // Create new Group
     public function store(Request $request)
     {
         $request->validate([
+            'code' => 'required|unique:groups,code',
             'name' => 'required',
+            'description' => 'nullable'
         ]);
 
-        $Groups = Groups::create($request->only('code','name','description'));
-        return response()->json($Groups, 201);
+        $group = Group::create($request->only('code','name','description'));
+        return response()->json($group, 201);
     }
 
-    // Update Groups
+    // Update Group
     public function update(Request $request, $id)
     {
-        $Groups = Groups::findOrFail($id);
+        $group = Group::findOrFail($id);
 
         $request->validate([
+            'code' => 'required|unique:groups,code,' . $group->id,
             'name' => 'required',
+            'description' => 'nullable'
         ]);
 
-        $Groups->update($request->only('code','name','description'));
-        return response()->json($Groups);
+        $group->update($request->only('code','name','description'));
+        return response()->json($group);
     }
 
-    // Delete Groups
+    // Delete Group
     public function destroy($id)
     {
-        $Groups = Groups::findOrFail($id);
-        $Groups->delete();
-        return response()->json(['message' => 'Groups deleted successfully']);
+        $group = Group::findOrFail($id);
+        $group->delete();
+        return response()->json(['message' => 'Group deleted successfully']);
     }
 }

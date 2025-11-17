@@ -61,7 +61,7 @@ const model = ref([
             {
                 label: 'Function',
                 icon: 'pi pi-fw pi-wrench',
-                to: '/pages/functions'
+                to: '/pages/fnctions'
             },
             {
                 label: 'Group',
@@ -90,6 +90,11 @@ const model = ref([
                     //     icon: 'pi pi-fw pi-times-circle',
                     //     to: '/auth/error'
                     // },
+                    {
+                        label: 'Account',
+                        icon: 'pi pi-fw pi-user',
+                        command: handleLogout,
+                    },
                     {
                         label: 'Logout',
                         icon: 'pi pi-fw pi-sign-out',

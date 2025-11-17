@@ -2,57 +2,57 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Models\Permissions;
+use App\Models\Permission;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
 class PermissionController extends Controller
 {
-    // List all Permissionss
+    // List all Permissions
     public function index()
     {
-        $Permissions = Permissions::all();
-        return response()->json($Permissions);
+        $permission = Permission::all();
+        return response()->json($permission);
     }
 
-    // Show a single Permissions
+    // Show a single Permission
     public function show($id)
     {
-        $Permissions = Permissions::findOrFail($id);
-        return response()->json($Permissions);
+        $permission = Permission::findOrFail($id);
+        return response()->json($permission);
     }
 
-    // Create new Permissions
+    // Create new Permission
     public function store(Request $request)
     {
         $request->validate([
-            'code' => 'required|unique:Permissions,code',
+            'code' => 'required|unique:permissions,code',
             'name' => 'required',
         ]);
 
-        $Permissions = Permissions::create($request->only('code','name','description'));
-        return response()->json($Permissions, 201);
+        $permission = Permission::create($request->only('code','name','description'));
+        return response()->json($permission, 201);
     }
 
-    // Update Permissions
+    // Update Permission
     public function update(Request $request, $id)
     {
-        $Permissions = Permissions::findOrFail($id);
+        $permission = Permission::findOrFail($id);
 
         $request->validate([
-            'code' => 'required|unique:Permissions,code,' . $Permissions->id,
+            'code' => 'required|unique:permissions,code,' . $permission->id,
             'name' => 'required',
         ]);
 
-        $Permissions->update($request->only('code','name','description'));
-        return response()->json($Permissions);
+        $permission->update($request->only('code','name','description'));
+        return response()->json($permission);
     }
 
-    // Delete Permissions
+    // Delete Permission
     public function destroy($id)
     {
-        $Permissions = Permissions::findOrFail($id);
-        $Permissions->delete();
-        return response()->json(['message' => 'Permissions deleted successfully']);
+        $permission = Permission::findOrFail($id);
+        $permission->delete();
+        return response()->json(['message' => 'Permission deleted successfully']);
     }
 }

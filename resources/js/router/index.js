@@ -123,10 +123,10 @@ const router = createRouter({
                     meta: {  requiresAuth: true },
                 },
                 {
-                    path: "pages/functions",
-                    name: "function",
+                    path: "pages/fnctions",
+                    name: "fnction",
                     component: () =>
-                        import("@/views/pages/admin/function/index.vue"),
+                        import("@/views/pages/admin/fnction/index.vue"),
                     meta: {  requiresAuth: true },
                 },
                 {
@@ -167,6 +167,11 @@ const router = createRouter({
             path: "/:pathMatch(.*)*",
             name: "notfound",
             component: () => import("@/views/pages/NotFound.vue"),
+        },
+        {
+            path: "/auth/account",
+            name: "account",
+            component: () => import("@/views/pages/auth/Account.vue"),
         },
     ],
 });
