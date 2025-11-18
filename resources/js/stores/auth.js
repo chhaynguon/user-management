@@ -8,7 +8,7 @@ export const useAuthStore = defineStore("auth", {
         user: null,
     }),
     actions: {
-        async login(token, user) {
+        login({token, user}) {
             this.token = token;
             this.user = user;
         },
@@ -22,6 +22,12 @@ export const useAuthStore = defineStore("auth", {
             }
             this.token = null;
             this.user = null;
+        },
+        hasRole(role) {
+            return this.user?.roles?.includes(role);
+        },
+        hasPermission(permission) {
+            return this.user?.permissions?.includes(permission);
         },
     },
     persist: {

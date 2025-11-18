@@ -17,8 +17,6 @@ class UserController extends Controller
     }
 
 
-
-
     public function show($id)
     {
         $user = User::with(['groups.roles.permissions'])->findOrFail($id);

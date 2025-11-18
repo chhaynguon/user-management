@@ -13,6 +13,7 @@ const userDialog = ref(false);
 const dt = ref();
 const selectedUsers = ref([]);
 const submitted = ref(false);
+const group = ref([]);
 
 onMounted(async () => {
     await fetchUsers();
@@ -67,7 +68,7 @@ function findIndexById(id) {
 async function saveUser() {
     submitted.value = true;
 
-    if (user.value.name?.trim() && user.value.email?.trim() && user.value.password?.trim()) {
+    if (user.value.name?.trim() && user.value.email?.trim() && user.value.password?.trim() && group.value.group_codes) {
         try {
             if (!user.value.id) {
                 // Create new user
@@ -75,10 +76,12 @@ async function saveUser() {
                     name: user.value.name,
                     email: user.value.email,
                     password: user.value.password,
+                    group_codes: group.value.group_codes,
                 });
 
                 // Add the newly created user to the list
                 users.value.push(res.data);
+                group.value.push(res.data);
 
                 toast.add({
                     severity: 'success',
@@ -92,6 +95,7 @@ async function saveUser() {
                     name: user.value.name,
                     email: user.value.email,
                     password: user.value.password,
+                    group_codes: group.value.group_codes,
                 });
 
                 const index = findIndexById(user.value.id);
@@ -236,7 +240,12 @@ const refresh = async () => {
                     <label for="password" class="block font-bold mb-3">Password</label>
                     <InputText id="password" v-model.trim="user.password" required="true" autofocus
                         :invalid="submitted && !user.password" fluid />
-                    <small v-if="submitted && !user.password" class="text-red-500">Name is required.</small>
+                    <small v-if="submitted && !user.password" class="text-red-500">Password is required.</small>
+                </div>
+                <div>
+                    <label>Groups</label>
+                    <MultiSelect v-model="user.group_codes" :options="groups" optionLabel="name" optionValue="code"
+                        placeholder="Select groups" />
                 </div>
                 <!-- <div>
                     <label for="email" class="block font-bold mb-3">Email</label>

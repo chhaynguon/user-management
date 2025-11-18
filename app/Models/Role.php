@@ -31,11 +31,11 @@ class Role extends Model
         return $this->belongsToMany(
             Permission::class,
             'role_fnction_permission',
-            'role_code',         
-            'permission_code',   
-            'code',              
-            'code'              
-        )->withPivot('fnction_code'); 
+            'role_code',
+            'permission_code',
+            'code',
+            'code'
+        )->withPivot('fnction_code');
     }
 
     /**
@@ -50,8 +50,8 @@ class Role extends Model
         return $this->belongsToMany(
             Fnction::class,
             'role_fnction_permission',
-            'role_code',        
-            'fnction_code',     
+            'role_code',
+            'fnction_code',
             'code'
         )->distinct();
     }
@@ -65,10 +65,11 @@ class Role extends Model
         return $this->belongsToMany(
             Group::class,
             'group_role',
-            'role_code',   
-            'group_code',  
-            'code',       
-            'code'        
+            'role_code',
+            'group_code',
+            'code',
+            'code'
         );
     }
+
 }

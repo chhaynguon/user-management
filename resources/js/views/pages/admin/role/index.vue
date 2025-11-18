@@ -207,7 +207,7 @@ const refresh = async () => {
                 <Column field="code" header="Code" sortable style="min-width: 12rem"></Column>
                 <Column field="name" header="Name" sortable style="min-width: 12rem"></Column>
                 <Column field="description" header="Description" sortable style="min-width: 15rem"></Column>
-                <Column field="created_at" header="Create at" sortable style="min-width: 16rem"></Column>
+                <Column field="created_at" header="Created at" sortable style="min-width: 16rem"></Column>
                 <Column :exportable="false" style="min-width: 12rem">
                     <template #body="slotProps">
                         <Button icon="pi pi-pencil" outlined rounded class="mr-2"

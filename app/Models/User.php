@@ -40,19 +40,6 @@ class User extends Authenticatable
     }
 
     /**
-     * USER → ROLES (through groups)
-     */
-    public function roles()
-    {
-        return $this->groups()
-            ->with('roles')
-            ->get()
-            ->pluck('roles.*.code')
-            ->flatten()
-            ->unique('code');
-    }
-
-    /**
      * USER → PERMISSIONS (via roles)
      */
     public function permissions()
@@ -75,5 +62,13 @@ class User extends Authenticatable
     public function hasPermission($permissionCode)
     {
         return $this->permissions()->pluck('code')->contains($permissionCode);
+    }
+
+    public function roles()
+    {
+        return Role::whereIn(
+            'code',
+            $this->groups()->with('roles')->get()->pluck('roles.*.code')->flatten()
+        );
     }
 }

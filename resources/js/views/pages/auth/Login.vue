@@ -20,13 +20,15 @@ const toast = useToast();
 const login = async () => {
     try {
         const res = await AuthService.login(email.value, password.value);
-        auth.token = res.data.token;
-        auth.user = res.data.user; // get user object
-        console.log(auth.token)
-
+        auth.login({
+            token: res.data.token,
+            user: res.data.user,
+        })
         toast.add({ severity: 'success', summary: 'Successful', detail: 'Login Successful', life: 3000 });
 
-        if (auth.user.role === "admin") {
+        if (auth.hasRole("ADMIN")) {
+            router.push({ name: "dashboard" });
+        } else if (auth.hasRole("USER")) {
             router.push({ name: "dashboard" });
         } else {
             router.push({ name: "dashboard" });
