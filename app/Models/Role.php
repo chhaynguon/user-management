@@ -2,14 +2,17 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Carbon\Carbon;
 
 class Role extends Model
 {
     use HasFactory;
 
+    protected $primaryKey = 'code';
+    public $incrementing = false;
+    protected $keyType = 'string';
     protected $fillable = ['code', 'name', 'description'];
 
     public function getCreatedAtAttribute($value)
@@ -22,49 +25,12 @@ class Role extends Model
         return Carbon::parse($value)->format('Y-m-d H:i:s');
     }
 
-    /**
-     * Permissions assigned to this role
-     * Pivot table: role_fnction_permission
-     */
-    public function permissions()
-    {
-        return $this->belongsToMany(
-            Permission::class,
-            'role_fnction_permission',
-            'role_code',
-            'permission_code',
-            'code',
-            'code'
-        )->withPivot('fnction_code');
-    }
-
-    /**
-     * Functions assigned to this role
-     * Pivot table: role_fnction_permission
-     *
-     * Because fnction_code is also part of the same pivot,
-     * we can get all functions declared for this role.
-     */
-    public function fnctions()
-    {
-        return $this->belongsToMany(
-            Fnction::class,
-            'role_fnction_permission',
-            'role_code',
-            'fnction_code',
-            'code'
-        )->distinct();
-    }
-
-    /**
-     * Groups that include this role
-     * Pivot table: group_role
-     */
+    // Role belongs to many groups
     public function groups()
     {
         return $this->belongsToMany(
             Group::class,
-            'group_role',
+            'group_has_roles',
             'role_code',
             'group_code',
             'code',
@@ -72,4 +38,29 @@ class Role extends Model
         );
     }
 
+    // Role belongs to many users
+    public function users()
+    {
+        return $this->belongsToMany(
+            User::class,
+            'user_has_roles',
+            'role_code',
+            'user_id',
+            'code',
+            'id'
+        );
+    }
+
+    // Role has many permissions through function
+    public function permissions()
+    {
+        return $this->belongsToMany(
+            Permission::class,
+            'role_has_permissions',
+            'role_code',
+            'permission_code',
+            'code',
+            'code'
+        )->withPivot('fnction_code', 'fnc_perm_code');
+    }
 }

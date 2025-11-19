@@ -10,9 +10,10 @@ const auth = useAuthStore();
 const router = useRouter();
 
 const handleLogout = async () => {
-    await auth.logout(); // clears token & user
+    await auth.logout(); // clears token & user safely
     router.push({ name: "login" }); // redirect to login page
 };
+
 
 
 const model = ref([

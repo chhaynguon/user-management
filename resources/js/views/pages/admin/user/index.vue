@@ -2,7 +2,10 @@
 import { FilterMatchMode } from '@primevue/core/api';
 import { onMounted, ref } from 'vue';
 import UserService from '@/service/UserService';
+import GroupService from '@/service/GroupService';
+import RoleService from '@/service/RoleService';
 import { useToast } from 'primevue';
+import FnctionService from '@/service/FnctionService';
 
 const toast = useToast();
 const users = ref([]);
@@ -13,22 +16,60 @@ const userDialog = ref(false);
 const dt = ref();
 const selectedUsers = ref([]);
 const submitted = ref(false);
-const group = ref([]);
+const groups = ref([]);
+const group = ref();
+const roles = ref([]);
+const role = ref();
+const fnctions = ref([]);
+const fnction = ref();
 
 onMounted(async () => {
     await fetchUsers();
+    await fetchGroups();
+    await fetchRoles();
+    await fetchfnctions();
 });
 
 const fetchUsers = async () => {
     try {
         const res = await UserService.findAll();
-        console.log(res)
         users.value = res.data;
         console.log("Users:", users.value)
     } catch (err) {
         console.error('Failed to fetch users:', err);
     }
 }
+
+const fetchGroups = async () => {
+    try {
+        const res = await GroupService.findAll();
+        groups.value = res.data;
+        console.log("Groups:", groups.value)
+    } catch (err) {
+        console.error('Failed to fetch users:', err);
+    }
+}
+
+const fetchRoles = async () => {
+    try {
+        const res = await RoleService.findAll();
+        roles.value = res.data;
+        console.log("Roles:", roles.value)
+    } catch (err) {
+        console.error('Failed to fetch users:', err);
+    }
+}
+
+const fetchfnctions = async () => {
+    try {
+        const res = await FnctionService.findAll();
+        fnctions.value = res.data;
+        console.log("Functions:", fnctions.value)
+    } catch (err) {
+        console.error('Failed to fetch users:', err);
+    }
+}
+
 
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS }
@@ -40,6 +81,7 @@ function exportCSV() {
 
 function openNew() {
     user.value = {};
+    group.value = {};
     submitted.value = false;
     userDialog.value = true;
 }
@@ -50,6 +92,9 @@ function hideDialog() {
 
 function editUser(selectedUser) {
     user.value = { ...selectedUser };
+    group.value.group_codes = selectedUser.group_codes || [];
+    role.value = selectedUser.role_code || [];
+    fnction.value = selectedUser.fnction_code || [];
     userDialog.value = true;
 }
 
@@ -68,7 +113,7 @@ function findIndexById(id) {
 async function saveUser() {
     submitted.value = true;
 
-    if (user.value.name?.trim() && user.value.email?.trim() && user.value.password?.trim() && group.value.group_codes) {
+    if (user.value.name?.trim() && user.value.email?.trim() && user.value.password?.trim() && Array.isArray(group.value.group_codes) && group.value.group_codes.length > 0) {
         try {
             if (!user.value.id) {
                 // Create new user
@@ -76,12 +121,13 @@ async function saveUser() {
                     name: user.value.name,
                     email: user.value.email,
                     password: user.value.password,
-                    group_codes: group.value.group_codes,
+                    group_codes: group.value.group_codes || [],
+                    role_code: role.value || [],
+                    fnction: fnction.value || [],
                 });
 
                 // Add the newly created user to the list
                 users.value.push(res.data);
-                group.value.push(res.data);
 
                 toast.add({
                     severity: 'success',
@@ -95,7 +141,9 @@ async function saveUser() {
                     name: user.value.name,
                     email: user.value.email,
                     password: user.value.password,
-                    group_codes: group.value.group_codes,
+                    group_codes: group.value.group_codes || [],
+                    role_code: role.value || [],
+                    fnction: fnction.value || [],
                 });
 
                 const index = findIndexById(user.value.id);
@@ -243,18 +291,20 @@ const refresh = async () => {
                     <small v-if="submitted && !user.password" class="text-red-500">Password is required.</small>
                 </div>
                 <div>
-                    <label>Groups</label>
-                    <MultiSelect v-model="user.group_codes" :options="groups" optionLabel="name" optionValue="code"
-                        placeholder="Select groups" />
-                </div>
-                <!-- <div>
-                    <label for="email" class="block font-bold mb-3">Email</label>
-                    <InputText id="email" v-model="user.email" fluid />
+                    <MultiSelect v-model="group.group_codes" :options="groups" optionLabel="name" optionValue="code"
+                        placeholder="Groups" />
+
                 </div>
                 <div>
-                    <label for="password" class="block font-bold mb-3">Password</label>
-                    <InputText id="password" v-model="user.password" integeronly fluid />
-                </div> -->
+                    <MultiSelect v-model="role" :options="roles" optionLabel="name" optionValue="code"
+                        placeholder="Roles" />
+
+                </div>
+                <div>
+                    <MultiSelect v-model="fnction" :options="fnction" optionLabel="name" optionValue="code"
+                        placeholder="Functions" />
+
+                </div>
             </div>
 
             <template #footer>

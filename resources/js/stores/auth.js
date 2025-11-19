@@ -8,13 +8,15 @@ export const useAuthStore = defineStore("auth", {
         user: null,
     }),
     actions: {
-        login({token, user}) {
+        login({ token, user }) {
             this.token = token;
             this.user = user;
         },
         async logout() {
             try {
-                await AuthService.logout();
+                if (this.token) {
+                    await AuthService.logout();
+                }
             } catch (e) {
                 console.warn(
                     "Logout request failed, token might already be invalid."
@@ -22,6 +24,7 @@ export const useAuthStore = defineStore("auth", {
             }
             this.token = null;
             this.user = null;
+            sessionStorage.removeItem("auth");
         },
         hasRole(role) {
             return this.user?.roles?.includes(role);

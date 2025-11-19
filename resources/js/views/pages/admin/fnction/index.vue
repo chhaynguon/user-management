@@ -52,18 +52,6 @@ function editFn(selectedFn) {
     fnDialog.value = true;
 }
 
-function findIndexById(id) {
-    let index = -1;
-    for (let i = 0; i < fns.value.length; i++) {
-        if (fns.value[i].id === id) {
-            index = i;
-            break;
-        }
-    }
-
-    return index;
-}
-
 async function saveFn() {
     submitted.value = true;
 
@@ -94,7 +82,6 @@ async function saveFn() {
                     description: fn.value.description,
                 });
 
-                const index = findIndexById(fn.value.id);
                 fns.value[index] = res.data;
 
                 toast.add({
@@ -187,8 +174,8 @@ const refresh = async () => {
                 </template>
             </Toolbar>
 
-            <DataTable ref="dt" v-model:selection="selectedFns" :value="fns" dataKey="id" :paginator="true" :rows="10"
-                :filters="filters" :globalFilterFields="['id', 'code', 'name', 'email']"
+            <DataTable ref="dt" v-model:selection="selectedFns" :value="fns" dataKey="code" :paginator="true" :rows="10"
+                :filters="filters" :globalFilterFields="['code', 'name', 'email']"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
                 :rowsPerPageOptions="[5, 10, 25]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} functions">
@@ -204,7 +191,6 @@ const refresh = async () => {
                     </div>
                 </template>
                 <Column selectionMode="multiple" style="width: 3rem" :exportable="false"></Column>
-                <Column field="id" header="ID" sortable style="min-width: 10rem"></Column>
                 <Column field="code" header="Code" sortable style="min-width: 12rem"></Column>
                 <Column field="name" header="Name" sortable style="min-width: 12rem"></Column>
                 <Column field="description" header="Description" sortable style="min-width: 15rem"></Column>
@@ -238,6 +224,11 @@ const refresh = async () => {
                     <InputText id="description" v-model.trim="fn.description" required="true" autofocus
                         :invalid="submitted && !fn.description" fluid />
                     <small v-if="submitted && !fn.description" class="text-red-500">Description is required.</small>
+                </div>
+                <div>
+                    <MultiSelect v-model="fn.permission_codes" :options="permissions" optionLabel="name" optionValue="code"
+                        placeholder="Select groups" />
+
                 </div>
             </div>
 

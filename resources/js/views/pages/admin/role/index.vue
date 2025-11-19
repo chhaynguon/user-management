@@ -52,17 +52,6 @@ function editRole(selectedRole) {
     roleDialog.value = true;
 }
 
-function findIndexById(id) {
-    let index = -1;
-    for (let i = 0; i < roles.value.length; i++) {
-        if (roles.value[i].id === id) {
-            index = i;
-            break;
-        }
-    }
-
-    return index;
-}
 
 async function saveRole() {
     submitted.value = true;
@@ -94,7 +83,6 @@ async function saveRole() {
                     description: role.value.description,
                 });
 
-                const index = findIndexById(role.value.id);
                 roles.value[index] = res.data;
 
                 toast.add({
@@ -186,8 +174,8 @@ const refresh = async () => {
                 </template>
             </Toolbar>
 
-            <DataTable ref="dt" v-model:selection="selectedRoles" :value="roles" dataKey="id"
-                :paginator="true" :rows="10" :filters="filters" :globalFilterFields="['id', 'code', 'name', 'email']"
+            <DataTable ref="dt" v-model:selection="selectedRoles" :value="roles" dataKey="code" :paginator="true"
+                :rows="10" :filters="filters" :globalFilterFields="['code', 'name', 'email']"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
                 :rowsPerPageOptions="[5, 10, 25]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} roles">
@@ -203,15 +191,13 @@ const refresh = async () => {
                     </div>
                 </template>
                 <Column selectionMode="multiple" style="width: 3rem" :exportable="false"></Column>
-                <Column field="id" header="ID" sortable style="min-width: 10rem"></Column>
                 <Column field="code" header="Code" sortable style="min-width: 12rem"></Column>
                 <Column field="name" header="Name" sortable style="min-width: 12rem"></Column>
                 <Column field="description" header="Description" sortable style="min-width: 15rem"></Column>
                 <Column field="created_at" header="Created at" sortable style="min-width: 16rem"></Column>
                 <Column :exportable="false" style="min-width: 12rem">
                     <template #body="slotProps">
-                        <Button icon="pi pi-pencil" outlined rounded class="mr-2"
-                            @click="editRole(slotProps.data)" />
+                        <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editRole(slotProps.data)" />
                         <Button icon="pi pi-trash" outlined rounded severity="danger"
                             @click="confirmDeleteRole(slotProps.data)" />
                     </template>
@@ -219,8 +205,7 @@ const refresh = async () => {
             </DataTable>
         </div>
 
-        <Dialog v-model:visible="roleDialog" :style="{ width: '450px' }" header="Role Details"
-            :modal="true">
+        <Dialog v-model:visible="roleDialog" :style="{ width: '450px' }" header="Role Details" :modal="true">
             <div class="flex flex-col gap-6">
                 <div>
                     <label for="code" class="block font-bold mb-3">Role code</label>

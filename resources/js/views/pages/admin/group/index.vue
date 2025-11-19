@@ -52,18 +52,6 @@ function editGroup(selectedGroup) {
     groupDialog.value = true;
 }
 
-function findIndexById(id) {
-    let index = -1;
-    for (let i = 0; i < groups.value.length; i++) {
-        if (groups.value[i].id === id) {
-            index = i;
-            break;
-        }
-    }
-
-    return index;
-}
-
 async function saveGroup() {
     submitted.value = true;
 
@@ -94,7 +82,6 @@ async function saveGroup() {
                     description: group.value.description,
                 });
 
-                const index = findIndexById(group.value.id);
                 groups.value[index] = res.data;
 
                 toast.add({
@@ -187,8 +174,8 @@ const refresh = async () => {
                 </template>
             </Toolbar>
 
-            <DataTable ref="dt" v-model:selection="selectedGroups" :value="groups" dataKey="id" :paginator="true"
-                :rows="10" :filters="filters" :globalFilterFields="['id', 'code', 'name', 'email']"
+            <DataTable ref="dt" v-model:selection="selectedGroups" :value="groups" dataKey="code" :paginator="true"
+                :rows="10" :filters="filters" :globalFilterFields="['code', 'name', 'email']"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
                 :rowsPerPageOptions="[5, 10, 25]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} groups">
@@ -204,7 +191,6 @@ const refresh = async () => {
                     </div>
                 </template>
                 <Column selectionMode="multiple" style="width: 3rem" :exportable="false"></Column>
-                <Column field="id" header="ID" sortable style="min-width: 10rem"></Column>
                 <Column field="code" header="Code" sortable style="min-width: 12rem"></Column>
                 <Column field="name" header="Name" sortable style="min-width: 12rem"></Column>
                 <Column field="description" header="Description" sortable style="min-width: 15rem"></Column>

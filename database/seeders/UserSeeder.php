@@ -16,6 +16,7 @@ class UserSeeder extends Seeder
             'name' => 'Admin',
             'email' => 'admin@example.com',
             'password' => Hash::make('password'),
+            
 
         ]);
         // Normal user
@@ -25,9 +26,6 @@ class UserSeeder extends Seeder
             'password' => Hash::make('password'),
         ]);
 
-        DB::table('user_role')->insert([
-            ['user_id' => $admin->id, 'role_code' => 'ADMIN'],
-            ['user_id' => $user->id, 'role_code' => 'USER'],
-        ]);
+        
     }
 }

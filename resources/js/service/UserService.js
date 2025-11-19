@@ -6,5 +6,4 @@ export default {
     create: (data) => api.post("/users", data),
     update: (id, data) => api.put(`/users/${id}`, data),
     delete: (id) => api.delete(`/users/${id}`),
-    getGroup: () =>  api.get("/groups"),
 };
