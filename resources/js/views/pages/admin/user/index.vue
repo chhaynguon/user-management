@@ -7,21 +7,27 @@ import RoleService from '@/service/RoleService';
 import { useToast } from 'primevue';
 import FnctionService from '@/service/FnctionService';
 
+// Primevue
 const toast = useToast();
+
+// Data
 const users = ref([]);
-const user = ref();
+const groups = ref([]);
+const roles = ref([]);
+const fnctions = ref([]);
+
+// Form model
+const user = ref({});
+const groupCodes = ref([]);      // selected groups
+const roleCodes = ref([]);       // selected roles
+const fnctionCodes = ref([]);    // selected functions
+
+const dt = ref();
 const deleteUserDialog = ref(false);
 const deleteUsersDialog = ref(false);
 const userDialog = ref(false);
-const dt = ref();
 const selectedUsers = ref([]);
 const submitted = ref(false);
-const groups = ref([]);
-const group = ref();
-const roles = ref([]);
-const role = ref();
-const fnctions = ref([]);
-const fnction = ref();
 
 onMounted(async () => {
     await fetchUsers();
@@ -81,7 +87,9 @@ function exportCSV() {
 
 function openNew() {
     user.value = {};
-    group.value = {};
+    groupCodes.value = [];
+    roleCodes.value = [];
+    fnctionCodes.value = [];
     submitted.value = false;
     userDialog.value = true;
 }
@@ -92,9 +100,9 @@ function hideDialog() {
 
 function editUser(selectedUser) {
     user.value = { ...selectedUser };
-    group.value.group_codes = selectedUser.group_codes || [];
-    role.value = selectedUser.role_code || [];
-    fnction.value = selectedUser.fnction_code || [];
+    groupCodes.value = selectedUser.group_code || [];
+    roleCodes.value = selectedUser.role_code || [];
+    fnctionCodes.value = selectedUser.fnction_code || [];
     userDialog.value = true;
 }
 
@@ -106,71 +114,65 @@ function findIndexById(id) {
             break;
         }
     }
-
     return index;
 }
 
 async function saveUser() {
     submitted.value = true;
 
-    if (user.value.name?.trim() && user.value.email?.trim() && user.value.password?.trim() && Array.isArray(group.value.group_codes) && group.value.group_codes.length > 0) {
-        try {
-            if (!user.value.id) {
-                // Create new user
-                const res = await UserService.create({
-                    name: user.value.name,
-                    email: user.value.email,
-                    password: user.value.password,
-                    group_codes: group.value.group_codes || [],
-                    role_code: role.value || [],
-                    fnction: fnction.value || [],
-                });
+    if (!user.value.name || !user.value.email || (!user.value.id && !user.value.password)) return;
 
-                // Add the newly created user to the list
-                users.value.push(res.data);
+    const payload = {
+        name: user.value.name,
+        email: user.value.email,
+        password: user.value.password || undefined,
+        groups: groupCodes.value.map(code => ({ group_code: code })),
+        roles: roleCodes.value.map(code => ({ role_code: code })),
+        permissions: fnctionCodes.value.map(code => ({
+            fnction_code: code, permission_code: 'USER.NEW',
+            fnc_perm_code: 'USER.NEW'
+        }))
+    };
 
-                toast.add({
-                    severity: 'success',
-                    summary: 'Success',
-                    detail: 'User Created',
-                    life: 3000
-                });
-            } else {
-                // Update existing user
-                const res = await UserService.update(user.value.id, {
-                    name: user.value.name,
-                    email: user.value.email,
-                    password: user.value.password,
-                    group_codes: group.value.group_codes || [],
-                    role_code: role.value || [],
-                    fnction: fnction.value || [],
-                });
+    try {
+        if (!user.value.id) {
+            // Add the newly created user to the list
+            const res = await UserService.create(payload);
+            users.value.push(res.data);
 
-                const index = findIndexById(user.value.id);
-                users.value[index] = res.data;
-
-                toast.add({
-                    severity: 'success',
-                    summary: 'Success',
-                    detail: 'User Updated',
-                    life: 3000
-                });
-            }
-
-            // Reset form
-            userDialog.value = false;
-            user.value = {};
-            submitted.value = false;
-
-        } catch (error) {
-            console.error(error);
             toast.add({
-                severity: 'error',
-                summary: 'Error',
-                detail: error.response?.data?.message || 'Failed to save user',
+                severity: 'success',
+                summary: 'Success',
+                detail: 'User Created',
+                life: 3000
+            });
+        } else {
+            // Update existing user
+            const res = await UserService.update(user.value.id, { payload });
+            const index = findIndexById(user.value.id);
+            users.value[index] = res.data;
+
+            toast.add({
+                severity: 'success',
+                summary: 'Success',
+                detail: 'User Updated',
                 life: 3000
             });
         }
+
+        // Reset form
+        userDialog.value = false;
+        user.value = {};
+        submitted.value = false;
+
+    } catch (error) {
+        console.error(error);
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: error.response?.data?.message || 'Failed to save user',
+            life: 3000
+        });
     }
 }
 
@@ -240,7 +242,7 @@ const refresh = async () => {
             </Toolbar>
 
             <DataTable ref="dt" v-model:selection="selectedUsers" :value="users" dataKey="id" :paginator="true"
-                :rows="10" :filters="filters" :globalFilterFields="['id', 'name', 'email']"
+                :rows="10" :filters="filters" :globalFilterFields="['id', 'name']"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
                 :rowsPerPageOptions="[5, 10, 25]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} users">
@@ -260,6 +262,30 @@ const refresh = async () => {
                 <Column field="name" header="Name" sortable style="min-width: 16rem"></Column>
                 <Column field="email" header="Email" sortable style="min-width: 16rem"></Column>
                 <Column field="created_at" header="Created at" sortable style="min-width: 16rem"></Column>
+                <Column header="Groups">
+                    <template #body="slotProps">
+                        <span v-if="slotProps.data.groups">
+                            {{slotProps.data.groups.map(g => g.name).join(', ')}}
+                        </span>
+                        <span v-else>N/A</span>
+                    </template>
+                </Column>
+                <Column header="Roles">
+                    <template #body="slotProps">
+                        <span v-if="slotProps.data.roles">
+                            {{slotProps.data.roles.map(r => r.name).join(', ')}}
+                        </span>
+                        <span v-else>N/A</span>
+                    </template>
+                </Column>
+                <Column header="Functions">
+                    <template #body="slotProps">
+                        <span v-if="slotProps.data.fnctions">
+                            {{slotProps.data.fnctions.map(f => f.name).join(', ')}}
+                        </span>
+                        <span v-else>N/A</span>
+                    </template>
+                </Column>
                 <Column :exportable="false" style="min-width: 12rem">
                     <template #body="slotProps">
                         <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editUser(slotProps.data)" />
@@ -291,17 +317,19 @@ const refresh = async () => {
                     <small v-if="submitted && !user.password" class="text-red-500">Password is required.</small>
                 </div>
                 <div>
-                    <MultiSelect v-model="group.group_codes" :options="groups" optionLabel="name" optionValue="code"
+                    <label for="group" class="font-bold mr-3">Groups</label>
+                    <MultiSelect v-model="groupCodes" :options="groups" optionLabel="name" optionValue="code"
                         placeholder="Groups" />
-
                 </div>
                 <div>
-                    <MultiSelect v-model="role" :options="roles" optionLabel="name" optionValue="code"
+                    <label for="role" class="font-bold mr-3">Roles</label>
+                    <MultiSelect v-model="roleCodes" :options="roles" optionLabel="name" optionValue="code"
                         placeholder="Roles" />
 
                 </div>
                 <div>
-                    <MultiSelect v-model="fnction" :options="fnction" optionLabel="name" optionValue="code"
+                    <label for="fnction" class="font-bold mr-3">Functions</label>
+                    <MultiSelect v-model="fnctionCodes" :options="fnctions" optionLabel="name" optionValue="code"
                         placeholder="Functions" />
 
                 </div>

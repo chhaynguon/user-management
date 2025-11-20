@@ -2,59 +2,77 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Models\Group;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Models\Group;
+use Illuminate\Validation\Rule;
 
 class GroupController extends Controller
 {
-    // List all Group
+    // List all groups
     public function index()
     {
-        $group = Group::all();
-        return response()->json($group);
+        $groups = Group::with('roles')->get();
+        return response()->json($groups);
     }
 
-    // Show a single Group
-    public function show($id)
+    // Show single group by code
+    public function show($code)
     {
-        $group = Group::findOrFail($id);
+        $group = Group::where('code', $code)->with('roles','users')->firstOrFail();
         return response()->json($group);
     }
 
-    // Create new Group
+    // Create new group
     public function store(Request $request)
     {
-        $request->validate([
-            'code' => 'required|unique:groups,code',
-            'name' => 'required',
-            'description' => 'nullable'
+        $data = $request->validate([
+            'code' => ['required','string','max:100','unique:groups,code'],
+            'name' => ['required','string','max:255'],
+            'description' => ['nullable','string'],
+            // optional initial roles: array of role codes
+            'role_codes' => ['nullable','array'],
+            'role_codes.*' => ['string','exists:roles,code'],
         ]);
 
         $group = Group::create($request->only('code','name','description'));
-        return response()->json($group, 201);
+
+        // attach roles if provided
+        if (!empty($data['role_codes'])) {
+            $group->roles()->sync($data['role_codes']);
+        }
+
+        return response()->json($group->load('roles'), 201);
     }
 
-    // Update Group
-    public function update(Request $request, $id)
+    // Update group by code
+    public function update(Request $request, $code)
     {
-        $group = Group::findOrFail($id);
+        $group = Group::where('code', $code)->firstOrFail();
 
-        $request->validate([
-            'code' => 'required|unique:groups,code,' . $group->id,
-            'name' => 'required',
-            'description' => 'nullable'
+        $data = $request->validate([
+            'code' => ['required','string','max:100', Rule::unique('groups','code')->ignore($group->code, 'code')],
+            'name' => ['required','string','max:255'],
+            'description' => ['nullable','string'],
+            'role_codes' => ['nullable','array'],
+            'role_codes.*' => ['string','exists:roles,code'],
         ]);
 
         $group->update($request->only('code','name','description'));
-        return response()->json($group);
+
+        if (array_key_exists('role_codes', $data)) {
+            $group->roles()->sync($data['role_codes'] ?? []);
+        }
+
+        return response()->json($group->load('roles'));
     }
 
-    // Delete Group
-    public function destroy($id)
+    // Delete group by code
+    public function destroy($code)
     {
-        $group = Group::findOrFail($id);
+        $group = Group::where('code', $code)->firstOrFail();
         $group->delete();
-        return response()->json(['message' => 'Group deleted successfully']);
+
+        return response()->json(['message' => 'Group deleted successfully.']);
     }
 }

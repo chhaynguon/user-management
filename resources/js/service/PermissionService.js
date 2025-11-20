@@ -2,8 +2,8 @@ import api from "./api";
 
 export default {
     findAll: () => api.get("/permissions"),
-    findOne: (id) => api.get(`/permissions/${id}`),
+    findOne: (code) => api.get(`/permissions/${code}`),
     create: (data) => api.post("/permissions", data),
-    update: (id, data) => api.put(`/permissions/${id}`, data),
-    delete: (id) => api.delete(`/permissions/${id}`),
+    update: (code, data) => api.put(`/permissions/${code}`, data),
+    delete: (code) => api.delete(`/permissions/${code}`),
 };

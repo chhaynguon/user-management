@@ -7,12 +7,13 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
     public function index()
     {
-        $users = User::with(['groups.roles.permissions'])->get();
+        $users = User::with(['groups.roles.permissions', 'roles.permissions', 'permissions'])->get();
         return response()->json($users);
     }
 
@@ -30,8 +31,9 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users',
             'password' => 'required|string|min:6',
-            'group_codes' => 'nullable|array',
-            'group_codes.*' => 'string|exists:groups,code',
+            'group_code' => 'array',
+            'role_code' => 'array',
+            'fnction_code' => 'array',
         ]);
 
         $user = User::create([
@@ -40,11 +42,35 @@ class UserController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
-        // Attach groups if provided
-        if ($request->filled('group_codes')) {
-            $user->groups()->sync($request->group_codes);
+        if ($request->filled('group_code')) {
+            $user->groups()->sync($request->group_code);
         }
 
+        if ($request->filled('role_code')) {
+            $user->roles()->sync($request->role_code);
+        }
+
+        if ($request->filled('fnction_code')) {
+            $user->permissions()->sync($request->fnction_code);
+        }
+
+        if ($request->fnction_code) {
+            foreach ($request->fnction_code as $functionCode) {
+                // Example: attach USER.NEW and USER.VIEW for this function
+                $permissions = DB::table('function_has_permissions')
+                    ->where('function_code', $functionCode)
+                    ->get();
+
+                foreach ($permissions as $perm) {
+                    DB::table('user_has_permissions')->insert([
+                        'user_id'        => $user->id,
+                        'function_code'  => $perm->function_code,
+                        'permission_code' => $perm->permission_code,
+                        'fnc_perm_code'  => $perm->fnc_perm_code,
+                    ]);
+                }
+            }
+        }
 
         return response()->json($user, 201);
     }
@@ -58,8 +84,6 @@ class UserController extends Controller
             'name' => 'sometimes|string|max:255',
             'email' => ['sometimes', 'email', Rule::unique('users')->ignore($user->id)],
             'password' => 'sometimes|string|min:6',
-            'group_codes' => 'nullable|array',
-            'group_codes.*' => 'string|exists:groups,code',
 
         ]);
 

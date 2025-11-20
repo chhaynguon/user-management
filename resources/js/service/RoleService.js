@@ -2,8 +2,8 @@ import api from "./api";
 
 export default {
     findAll: () => api.get("/roles"),
-    findOne: (id) => api.get(`/roles/${id}`),
+    findOne: (code) => api.get(`/roles/${code}`),
     create: (data) => api.post("/roles", data),
-    update: (id, data) => api.put(`/roles/${id}`, data),
-    delete: (id) => api.delete(`/roles/${id}`),
+    update: (code, data) => api.put(`/roles/${code}`, data),
+    delete: (code) => api.delete(`/roles/${code}`),
 };

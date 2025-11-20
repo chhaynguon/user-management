@@ -31,32 +31,32 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
 Route::prefix('permissions')->group(function () {
     Route::get('/', [PermissionController::class, 'index']);
-    Route::get('/{id}', [PermissionController::class, 'show']);
+    Route::get('/{code}', [PermissionController::class, 'show']);
     Route::post('/', [PermissionController::class, 'store']);
-    Route::put('/{id}', [PermissionController::class, 'update']);
-    Route::delete('/{id}', [PermissionController::class, 'destroy']);
+    Route::put('/{code}', [PermissionController::class, 'update']);
+    Route::delete('/{code}', [PermissionController::class, 'destroy']);
 });
 
 Route::prefix('roles')->group(function () {
     Route::get('/', [RoleController::class, 'index']);
-    Route::get('/{id}', [RoleController::class, 'show']);
+    Route::get('/{code}', [RoleController::class, 'show']);
     Route::post('/', [RoleController::class, 'store']);
-    Route::put('/{id}', [RoleController::class, 'update']);
-    Route::delete('/{id}', [RoleController::class, 'destroy']);
+    Route::put('/{code}', [RoleController::class, 'update']);
+    Route::delete('/{code}', [RoleController::class, 'destroy']);
 });
 
 Route::prefix('fnctions')->group(function () {
     Route::get('/', [FnctionController::class, 'index']);
-    Route::get('/{id}', [FnctionController::class, 'show']);
+    Route::get('/{code}', [FnctionController::class, 'show']);
     Route::post('/', [FnctionController::class, 'store']);
-    Route::put('/{id}', [FnctionController::class, 'update']);
-    Route::delete('/{id}', [FnctionController::class, 'destroy']);
+    Route::put('/{code}', [FnctionController::class, 'update']);
+    Route::delete('/{code}', [FnctionController::class, 'destroy']);
 });
 
 Route::prefix('groups')->group(function () {
     Route::get('/', [GroupController::class, 'index']);
-    Route::get('/{id}', [GroupController::class, 'show']);
+    Route::get('/{code}', [GroupController::class, 'show']);
     Route::post('/', [GroupController::class, 'store']);
-    Route::put('/{id}', [GroupController::class, 'update']);
-    Route::delete('/{id}', [GroupController::class, 'destroy']);
+    Route::put('/{code}', [GroupController::class, 'update']);
+    Route::delete('/{code}', [GroupController::class, 'destroy']);
 });

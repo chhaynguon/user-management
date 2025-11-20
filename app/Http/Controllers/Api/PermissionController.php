@@ -5,54 +5,62 @@ namespace App\Http\Controllers\Api;
 use App\Models\Permission;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class PermissionController extends Controller
 {
-    // List all Permissions
+    // List all permissions
     public function index()
     {
-        $permission = Permission::all();
-        return response()->json($permission);
+        return response()->json(Permission::all());
     }
 
-    // Show a single Permission
-    public function show($id)
+    // Get permission by code
+    public function show($code)
     {
-        $permission = Permission::findOrFail($id);
+        $permission = Permission::where('code', $code)->firstOrFail();
         return response()->json($permission);
     }
 
-    // Create new Permission
+    // Create permission
     public function store(Request $request)
     {
-        $request->validate([
-            'code' => 'required|unique:permissions,code',
-            'name' => 'required',
+        $data = $request->validate([
+            'code' => ['required', 'string', 'max:100', 'unique:permissions,code'],
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string']
         ]);
 
-        $permission = Permission::create($request->only('code','name','description'));
+        $permission = Permission::create($data);
         return response()->json($permission, 201);
     }
 
-    // Update Permission
-    public function update(Request $request, $id)
+    // Update permission (by code)
+    public function update(Request $request, $code)
     {
-        $permission = Permission::findOrFail($id);
+        $permission = Permission::where('code', $code)->firstOrFail();
 
-        $request->validate([
-            'code' => 'required|unique:permissions,code,' . $permission->id,
-            'name' => 'required',
+        $data = $request->validate([
+            'code' => [
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('permissions', 'code')->ignore($permission->code, 'code')
+            ],
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string']
         ]);
 
-        $permission->update($request->only('code','name','description'));
+        $permission->update($data);
         return response()->json($permission);
     }
 
-    // Delete Permission
-    public function destroy($id)
+    // Delete permission
+    public function destroy($code)
     {
-        $permission = Permission::findOrFail($id);
+        $permission = Permission::where('code', $code)->firstOrFail();
         $permission->delete();
+
         return response()->json(['message' => 'Permission deleted successfully']);
     }
 }

@@ -2,8 +2,8 @@ import api from "./api";
 
 export default {
     findAll: () => api.get("/fnctions"),
-    findOne: (id) => api.get(`/fnctions/${id}`),
+    findOne: (code) => api.get(`/fnctions/${code}`),
     create: (data) => api.post("/fnctions", data),
-    update: (id, data) => api.put(`/fnctions/${id}`, data),
-    delete: (id) => api.delete(`/fnctions/${id}`),
+    update: (code, data) => api.put(`/fnctions/${code}`, data),
+    delete: (code) => api.delete(`/fnctions/${code}`),
 };

@@ -2,57 +2,63 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Models\Role;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Models\Role;
+use Illuminate\Validation\Rule;
 
 class RoleController extends Controller
 {
-    // List all Roles
+    // List all roles
     public function index()
     {
-        $role = Role::all();
-        return response()->json($role);
+        $roles = Role::all();
+        return response()->json($roles);
     }
 
-    // Show a single Roles
-    public function show($id)
+    // Show single role by code
+    public function show($code)
     {
-        $role = Role::findOrFail($id);
+        $role = Role::where('code', $code)->with('permissions')->firstOrFail();
         return response()->json($role);
     }
 
-    // Create new Roles
+    // Create new role
     public function store(Request $request)
     {
-        $request->validate([
-            'code' => 'required|unique:roles,code',
-            'name' => 'required',
+        $data = $request->validate([
+            'code' => ['required','string','max:100','unique:roles,code'],
+            'name' => ['required','string','max:255'],
+            'description' => ['nullable','string'],
         ]);
 
-        $role = Role::create($request->only('code','name','description'));
+        $role = Role::create($data);
         return response()->json($role, 201);
     }
 
-    // Update Roles
-    public function update(Request $request, $id)
+    // Update role by code
+    public function update(Request $request, $code)
     {
-        $role = Role::findOrFail($id);
+        $role = Role::where('code', $code)->firstOrFail();
 
-        $request->validate([
-            'code' => 'required|unique:roles,code,' . $role->id,
-            'name' => 'required',
+        $data = $request->validate([
+            'code' => ['required','string','max:100', Rule::unique('roles','code')->ignore($role->code, 'code')],
+            'name' => ['required','string','max:255'],
+            'description' => ['nullable','string'],
         ]);
 
-        $role->update($request->only('code','name','description'));
+        // If code changed, we should update the model's primary key (string). Eloquent will handle it.
+        $role->update($data);
+
         return response()->json($role);
     }
 
-    // Delete Roles
-    public function destroy($id)
+    // Delete role by code
+    public function destroy($code)
     {
-        $role = Role::findOrFail($id);
+        $role = Role::where('code', $code)->firstOrFail();
         $role->delete();
-        return response()->json(['message' => 'Roles deleted successfully']);
+
+        return response()->json(['message' => 'Role deleted successfully.']);
     }
 }
