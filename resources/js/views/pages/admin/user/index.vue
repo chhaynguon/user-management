@@ -1,11 +1,12 @@
 <script setup>
-import { FilterMatchMode } from '@primevue/core/api';
-import { onMounted, ref } from 'vue';
-import UserService from '@/service/UserService';
-import GroupService from '@/service/GroupService';
-import RoleService from '@/service/RoleService';
-import { useToast } from 'primevue';
-import FnctionService from '@/service/FnctionService';
+import { FilterMatchMode } from "@primevue/core/api";
+import { onMounted, ref, watch } from "vue";
+import UserService from "@/service/UserService";
+import GroupService from "@/service/GroupService";
+import RoleService from "@/service/RoleService";
+import { useToast } from "primevue";
+import FnctionService from "@/service/FnctionService";
+import PermissionService from "@/service/PermissionService";
 
 // Primevue
 const toast = useToast();
@@ -15,12 +16,15 @@ const users = ref([]);
 const groups = ref([]);
 const roles = ref([]);
 const fnctions = ref([]);
+const permissions = ref([]);
 
 // Form model
 const user = ref({});
-const groupCodes = ref([]);      // selected groups
-const roleCodes = ref([]);       // selected roles
-const fnctionCodes = ref([]);    // selected functions
+const groupCodes = ref([]); // selected groups
+const roleCodes = ref([]); // selected roles
+const fnctionCodes = ref([]); // selected functions
+const permissionCodes = ref([]);
+const fnctionPermissions = ref([]);
 
 const dt = ref();
 const deleteUserDialog = ref(false);
@@ -30,55 +34,58 @@ const selectedUsers = ref([]);
 const submitted = ref(false);
 
 onMounted(async () => {
-    await fetchUsers();
-    await fetchGroups();
-    await fetchRoles();
-    await fetchfnctions();
+    await Promise.all([
+        fetchUsers(),
+        fetchGroups(),
+        fetchRoles(),
+        fetchFnctions(),
+        fetchPermissions(),
+    ])
 });
 
 const fetchUsers = async () => {
     try {
         const res = await UserService.findAll();
         users.value = res.data;
-        console.log("Users:", users.value)
     } catch (err) {
-        console.error('Failed to fetch users:', err);
+        console.error("Failed to fetch users:", err);
     }
-}
-
+};
 const fetchGroups = async () => {
     try {
         const res = await GroupService.findAll();
         groups.value = res.data;
-        console.log("Groups:", groups.value)
     } catch (err) {
-        console.error('Failed to fetch users:', err);
+        console.error("Failed to fetch users:", err);
     }
-}
-
+};
 const fetchRoles = async () => {
     try {
         const res = await RoleService.findAll();
         roles.value = res.data;
-        console.log("Roles:", roles.value)
     } catch (err) {
-        console.error('Failed to fetch users:', err);
+        console.error("Failed to fetch users:", err);
     }
-}
-
-const fetchfnctions = async () => {
+};
+const fetchFnctions = async () => {
     try {
         const res = await FnctionService.findAll();
         fnctions.value = res.data;
-        console.log("Functions:", fnctions.value)
     } catch (err) {
-        console.error('Failed to fetch users:', err);
+        console.error("Failed to fetch users:", err);
     }
-}
-
+};
+const fetchPermissions = async () => {
+    try {
+        const res = await PermissionService.findAll();
+        permissions.value = res.data;
+    } catch (err) {
+        console.error("Failed to fetch permissions:", err);
+    }
+};
 
 const filters = ref({
-    global: { value: null, matchMode: FilterMatchMode.CONTAINS }
+    global: { value: null, matchMode: FilterMatchMode.CONTAINS },
 });
 
 function exportCSV() {
@@ -90,6 +97,7 @@ function openNew() {
     groupCodes.value = [];
     roleCodes.value = [];
     fnctionCodes.value = [];
+    permissionCodes.value = [];
     submitted.value = false;
     userDialog.value = true;
 }
@@ -99,39 +107,42 @@ function hideDialog() {
 }
 
 function editUser(selectedUser) {
-    user.value = { ...selectedUser };
-    groupCodes.value = selectedUser.group_code || [];
-    roleCodes.value = selectedUser.role_code || [];
-    fnctionCodes.value = selectedUser.fnction_code || [];
+
+    console.log(selectedUser)
+    user.value = { ...selectedUser, password: "" };
+    groupCodes.value = selectedUser.groups?.map(g => g.code) || [];
+    roleCodes.value = selectedUser.roles?.map(r => r.code) || [];
+    fnctionCodes.value = selectedUser.fnctions?.map(f => f.code) || [];
+    permissionCodes.value = selectedUser.permissions?.map(p => p.code) || [];
+
     userDialog.value = true;
 }
 
 function findIndexById(id) {
-    let index = -1;
-    for (let i = 0; i < users.value.length; i++) {
-        if (users.value[i].id === id) {
-            index = i;
-            break;
-        }
-    }
-    return index;
+    return users.value.findIndex(u => u.id === id);
 }
 
+
 async function saveUser() {
+    await refresh();
     submitted.value = true;
 
-    if (!user.value.name || !user.value.email || (!user.value.id && !user.value.password)) return;
+    if (
+        !user.value.name ||
+        !user.value.email ||
+        (!user.value.id && !user.value.password)
+    )
+        return;
 
     const payload = {
         name: user.value.name,
         email: user.value.email,
         password: user.value.password || undefined,
-        groups: groupCodes.value.map(code => ({ group_code: code })),
-        roles: roleCodes.value.map(code => ({ role_code: code })),
-        permissions: fnctionCodes.value.map(code => ({
-            fnction_code: code, permission_code: 'USER.NEW',
-            fnc_perm_code: 'USER.NEW'
-        }))
+        group_code: groupCodes.value,
+        role_code: roleCodes.value,
+        fnction_code: fnctionCodes.value,
+        fnciton_permission: fnctionPermissions.value,
+
     };
 
     try {
@@ -139,24 +150,24 @@ async function saveUser() {
             // Add the newly created user to the list
             const res = await UserService.create(payload);
             users.value.push(res.data);
-
+            console.log(user.value);
             toast.add({
-                severity: 'success',
-                summary: 'Success',
-                detail: 'User Created',
-                life: 3000
+                severity: "success",
+                summary: "Success",
+                detail: "User Created",
+                life: 3000,
             });
         } else {
             // Update existing user
-            const res = await UserService.update(user.value.id, { payload });
+            const res = await UserService.update(user.value.id, payload);
             const index = findIndexById(user.value.id);
             users.value[index] = res.data;
 
             toast.add({
-                severity: 'success',
-                summary: 'Success',
-                detail: 'User Updated',
-                life: 3000
+                severity: "success",
+                summary: "Success",
+                detail: "User Updated",
+                life: 3000,
             });
         }
 
@@ -164,42 +175,60 @@ async function saveUser() {
         userDialog.value = false;
         user.value = {};
         submitted.value = false;
-
     } catch (error) {
         console.error(error);
         toast.add({
-            severity: 'error',
-            summary: 'Error',
-            detail: error.response?.data?.message || 'Failed to save user',
-            life: 3000
+            severity: "error",
+            summary: "Error",
+            detail: error.response?.data?.message || "Failed to save user",
+            life: 3000,
         });
     }
 }
 
-function deleteUser() {
+async function deleteUser() {
     try {
-        UserService.delete(user.value.id); // make sure UserService has a delete method
+        await UserService.delete(user.value.id);
         users.value = users.value.filter(u => u.id !== user.value.id);
         refresh();
-        toast.add({ severity: 'success', summary: 'Successful', detail: 'User Deleted', life: 3000 });
+        toast.add({
+            severity: "success",
+            summary: "Successful",
+            detail: "User Deleted",
+            life: 3000,
+        });
         deleteUserDialog.value = false;
         user.value = {};
     } catch (error) {
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete user', life: 3000 });
+        toast.add({
+            severity: "error",
+            summary: "Error",
+            detail: "Failed to delete user",
+            life: 3000,
+        });
     }
-
 }
 
-function deleteSelectedUsers() {
+async function deleteSelectedUsers() {
     try {
-        const ids = selectedUsers.value.map(u => u.id);
-        Promise.all(ids.map(id => UserService.delete(id))); // call API for each
-        users.value = users.value.filter(u => !ids.includes(u.id));
-        toast.add({ severity: 'success', summary: 'Successful', detail: 'Users Deleted', life: 3000 });
+        const ids = selectedUsers.value.map((u) => u.id);
+        await Promise.all(ids.map((id) => UserService.delete(id))); // call API for each
+        users.value = users.value.filter((u) => !ids.includes(u.id));
+        toast.add({
+            severity: "success",
+            summary: "Successful",
+            detail: "Users Deleted",
+            life: 3000,
+        });
         deleteUsersDialog.value = false;
         selectedUsers.value = [];
     } catch (error) {
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete selected users', life: 3000 });
+        toast.add({
+            severity: "error",
+            summary: "Error",
+            detail: "Failed to delete selected users",
+            life: 3000,
+        });
     }
 }
 
@@ -216,12 +245,34 @@ const refresh = async () => {
     try {
         const res = await UserService.findAll();
         users.value = res.data;
-        toast.add({ severity: 'success', summary: 'Refreshed', detail: 'User list updated', life: 2000 });
+        toast.add({
+            severity: "success",
+            summary: "Refreshed",
+            detail: "User list updated",
+            life: 2000,
+        });
     } catch (err) {
         console.error(err);
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to refresh users', life: 3000 });
+        toast.add({
+            severity: "error",
+            summary: "Error",
+            detail: "Failed to refresh users",
+            life: 3000,
+        });
     }
-}
+};
+
+watch(fnctionCodes, (newFns) => {
+    fnctionPermissions.value = {};
+    newFns.forEach(fnCode => {
+        const fnObj = fnctions.value.find(f => f.code === fnCode);
+        if (fnObj?.permissions) {
+            fnctionPermissions.value[fnCode] = fnObj.permissions.map(p => p.code);
+        } else {
+            fnctionPermissions.value[fnCode] = []; // fallback empty array
+        }
+    });
+}, { immediate: true });
 
 </script>
 
@@ -242,7 +293,7 @@ const refresh = async () => {
             </Toolbar>
 
             <DataTable ref="dt" v-model:selection="selectedUsers" :value="users" dataKey="id" :paginator="true"
-                :rows="10" :filters="filters" :globalFilterFields="['id', 'name']"
+                :rows="10" :filters="filters" :globalFilterFields="['id', 'name', 'email']"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
                 :rowsPerPageOptions="[5, 10, 25]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} users">
@@ -258,35 +309,36 @@ const refresh = async () => {
                     </div>
                 </template>
                 <Column selectionMode="multiple" style="width: 3rem" :exportable="false"></Column>
-                <Column field="id" header="ID" sortable style="min-width: 12rem"></Column>
-                <Column field="name" header="Name" sortable style="min-width: 16rem"></Column>
-                <Column field="email" header="Email" sortable style="min-width: 16rem"></Column>
-                <Column field="created_at" header="Created at" sortable style="min-width: 16rem"></Column>
-                <Column header="Groups">
+                <Column field="id" header="ID" sortable style="min-width: 5rem"></Column>
+                <Column field="name" header="Name" sortable style="min-width: 8rem"></Column>
+                <Column field="email" header="Email" sortable style="min-width: 10rem"></Column>
+                <Column field="created_at" header="Created at" sortable style="min-width: 10rem"></Column>
+                <Column header="Groups" sortable>
                     <template #body="slotProps">
-                        <span v-if="slotProps.data.groups">
-                            {{slotProps.data.groups.map(g => g.name).join(', ')}}
+                        <span v-if="slotProps.data.groups?.length">
+                            {{slotProps.data.groups.map(g => g.code).join(', ')}}
                         </span>
-                        <span v-else>N/A</span>
+                        <span v-else>-</span>
                     </template>
                 </Column>
-                <Column header="Roles">
+                <Column header="Roles" sortable>
                     <template #body="slotProps">
-                        <span v-if="slotProps.data.roles">
-                            {{slotProps.data.roles.map(r => r.name).join(', ')}}
+                        <span v-if="slotProps.data.roles?.length">
+                            {{slotProps.data.roles.map(r => r.code).join(", ")}}
                         </span>
-                        <span v-else>N/A</span>
+                        <span v-else>-</span>
                     </template>
                 </Column>
-                <Column header="Functions">
+                <Column header="Functions" sortable>
                     <template #body="slotProps">
-                        <span v-if="slotProps.data.fnctions">
-                            {{slotProps.data.fnctions.map(f => f.name).join(', ')}}
+                        <span v-if="slotProps.data.fnctions?.length">
+                            {{slotProps.data.fnctions.map(f => f.code).join(', ')}}
                         </span>
-                        <span v-else>N/A</span>
+                        <span v-else>-</span>
                     </template>
                 </Column>
-                <Column :exportable="false" style="min-width: 12rem">
+
+                <Column :exportable="false" style="min-width: 8rem">
                     <template #body="slotProps">
                         <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editUser(slotProps.data)" />
                         <Button icon="pi pi-trash" outlined rounded severity="danger"
@@ -312,29 +364,29 @@ const refresh = async () => {
                 </div>
                 <div>
                     <label for="password" class="block font-bold mb-3">Password</label>
-                    <InputText id="password" v-model.trim="user.password" required="true" autofocus
-                        :invalid="submitted && !user.password" fluid />
-                    <small v-if="submitted && !user.password" class="text-red-500">Password is required.</small>
+                    <InputText id="password" type="password" v-model.trim="user.password" required="true" autofocus
+                        :invalid="submitted && !user.password && !user.id" fluid />
+                    <small v-if="submitted && !user.password && !user.id" class="text-red-500">Password is
+                        required.</small>
                 </div>
                 <div>
                     <label for="group" class="font-bold mr-3">Groups</label>
-                    <MultiSelect v-model="groupCodes" :options="groups" optionLabel="name" optionValue="code"
-                        placeholder="Groups" />
+                    <MultiSelect v-model="groupCodes" display="chip" :options="groups" optionLabel="name"
+                        optionValue="code" placeholder="Groups" />
                 </div>
                 <div>
                     <label for="role" class="font-bold mr-3">Roles</label>
-                    <MultiSelect v-model="roleCodes" :options="roles" optionLabel="name" optionValue="code"
-                        placeholder="Roles" />
-
+                    <MultiSelect v-model="roleCodes" display="chip" :options="roles" optionLabel="name"
+                        optionValue="code" placeholder="Roles" />
                 </div>
                 <div>
                     <label for="fnction" class="font-bold mr-3">Functions</label>
-                    <MultiSelect v-model="fnctionCodes" :options="fnctions" optionLabel="name" optionValue="code"
-                        placeholder="Functions" />
-
+                    <MultiSelect v-model="fnctionCodes" display="chip" :options="fnctions" optionLabel="name"
+                        optionValue="code" placeholder="Functions" />
+                    <div v-for="fnCode in fnctionCodes" :key="fnCode" class="ml-4">
+                    </div>
                 </div>
             </div>
-
             <template #footer>
                 <Button label="Cancel" icon="pi pi-times" text @click="hideDialog" />
                 <Button label="Save" icon="pi pi-check" @click="saveUser()" />

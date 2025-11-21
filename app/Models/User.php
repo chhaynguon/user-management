@@ -49,6 +49,20 @@ class User extends Authenticatable
         )->with('permissions');
     }
 
+    // User belongs to many functions through permissions
+    public function fnctions()
+    {
+        return $this->belongsToMany(
+            Fnction::class,
+            'user_has_permissions',
+            'user_id',
+            'fnction_code',
+            'id',
+            'code'
+        )->withPivot('permission_code', 'fnc_perm_code')
+            ->with('permissions');
+    }
+
     // User belongs to many permissions
     public function permissions()
     {
