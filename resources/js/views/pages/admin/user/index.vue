@@ -1,6 +1,6 @@
 <script setup>
 import { FilterMatchMode } from "@primevue/core/api";
-import { onMounted, ref, watch } from "vue";
+import { onMounted, reactive, ref, watch, computed } from "vue";
 import UserService from "@/service/UserService";
 import GroupService from "@/service/GroupService";
 import RoleService from "@/service/RoleService";
@@ -23,8 +23,7 @@ const user = ref({});
 const groupCodes = ref([]); // selected groups
 const roleCodes = ref([]); // selected roles
 const fnctionCodes = ref([]); // selected functions
-const permissionCodes = ref([]);
-const fnctionPermissions = ref([]);
+const fnctionPermissions = reactive({});
 
 const dt = ref();
 const deleteUserDialog = ref(false);
@@ -56,7 +55,7 @@ const fetchGroups = async () => {
         const res = await GroupService.findAll();
         groups.value = res.data;
     } catch (err) {
-        console.error("Failed to fetch users:", err);
+        console.error("Failed to fetch groups:", err);
     }
 };
 const fetchRoles = async () => {
@@ -64,7 +63,7 @@ const fetchRoles = async () => {
         const res = await RoleService.findAll();
         roles.value = res.data;
     } catch (err) {
-        console.error("Failed to fetch users:", err);
+        console.error("Failed to fetch roles:", err);
     }
 };
 const fetchFnctions = async () => {
@@ -72,7 +71,7 @@ const fetchFnctions = async () => {
         const res = await FnctionService.findAll();
         fnctions.value = res.data;
     } catch (err) {
-        console.error("Failed to fetch users:", err);
+        console.error("Failed to fetch functions:", err);
     }
 };
 const fetchPermissions = async () => {
@@ -97,23 +96,30 @@ function openNew() {
     groupCodes.value = [];
     roleCodes.value = [];
     fnctionCodes.value = [];
-    permissionCodes.value = [];
     submitted.value = false;
     userDialog.value = true;
 }
 function hideDialog() {
     userDialog.value = false;
     submitted.value = false;
+    Object.keys(fnctionPermissions).forEach(key => delete fnctionPermissions[key]);
 }
 
 function editUser(selectedUser) {
 
-    console.log(selectedUser)
     user.value = { ...selectedUser, password: "" };
     groupCodes.value = selectedUser.groups?.map(g => g.code) || [];
     roleCodes.value = selectedUser.roles?.map(r => r.code) || [];
     fnctionCodes.value = selectedUser.fnctions?.map(f => f.code) || [];
-    permissionCodes.value = selectedUser.permissions?.map(p => p.code) || [];
+    // Reset permissions object
+    Object.keys(fnctionPermissions).forEach(key => delete fnctionPermissions[key]);
+
+    // Load selected permissions for each function
+    fnctionCodes.value.forEach(fnCode => {
+        const fnObj = selectedUser.fnctions?.find(f => f.code === fnCode);
+        fnctionPermissions[fnCode] = fnObj?.permissions?.map(p => p.code) || [];
+    });
+
 
     userDialog.value = true;
 }
@@ -122,9 +128,7 @@ function findIndexById(id) {
     return users.value.findIndex(u => u.id === id);
 }
 
-
 async function saveUser() {
-    await refresh();
     submitted.value = true;
 
     if (
@@ -141,14 +145,14 @@ async function saveUser() {
         group_code: groupCodes.value,
         role_code: roleCodes.value,
         fnction_code: fnctionCodes.value,
-        fnciton_permission: fnctionPermissions.value,
-
+        fnction_permission: { ...fnctionPermissions },
     };
 
     try {
+        let res;
         if (!user.value.id) {
             // Add the newly created user to the list
-            const res = await UserService.create(payload);
+            res = await UserService.create(payload);
             users.value.push(res.data);
             console.log(user.value);
             toast.add({
@@ -159,7 +163,7 @@ async function saveUser() {
             });
         } else {
             // Update existing user
-            const res = await UserService.update(user.value.id, payload);
+            res = await UserService.update(user.value.id, payload);
             const index = findIndexById(user.value.id);
             users.value[index] = res.data;
 
@@ -263,16 +267,24 @@ const refresh = async () => {
 };
 
 watch(fnctionCodes, (newFns) => {
-    fnctionPermissions.value = {};
+    // Reset object
+    Object.keys(fnctionPermissions).forEach(key => {
+        if (!newFns.includes(key)) delete fnctionPermissions[key];
+    });
+
     newFns.forEach(fnCode => {
-        const fnObj = fnctions.value.find(f => f.code === fnCode);
-        if (fnObj?.permissions) {
-            fnctionPermissions.value[fnCode] = fnObj.permissions.map(p => p.code);
-        } else {
-            fnctionPermissions.value[fnCode] = []; // fallback empty array
+        if (!fnctionPermissions.hasOwnProperty(fnCode)) {
+            const fnObj = fnctions.value.find(f => f.code === fnCode);
+            fnctionPermissions[fnCode] = fnObj?.permissions?.map(p => p.code) || [];
         }
     });
 }, { immediate: true });
+
+const fnctionMap = computed(() => {
+    return Object.fromEntries(fnctions.value.map(f => [f.code, f]));
+});
+
+const listToString = (arr, key) => arr?.map(x => x[key]).join(', ') || '-';
 
 </script>
 
@@ -316,7 +328,7 @@ watch(fnctionCodes, (newFns) => {
                 <Column header="Groups" sortable>
                     <template #body="slotProps">
                         <span v-if="slotProps.data.groups?.length">
-                            {{slotProps.data.groups.map(g => g.code).join(', ')}}
+                            {{ listToString(slotProps.data.groups, 'code') }}
                         </span>
                         <span v-else>-</span>
                     </template>
@@ -324,7 +336,7 @@ watch(fnctionCodes, (newFns) => {
                 <Column header="Roles" sortable>
                     <template #body="slotProps">
                         <span v-if="slotProps.data.roles?.length">
-                            {{slotProps.data.roles.map(r => r.code).join(", ")}}
+                            {{ listToString(slotProps.data.roles, 'code') }}
                         </span>
                         <span v-else>-</span>
                     </template>
@@ -332,9 +344,10 @@ watch(fnctionCodes, (newFns) => {
                 <Column header="Functions" sortable>
                     <template #body="slotProps">
                         <span v-if="slotProps.data.fnctions?.length">
-                            {{slotProps.data.fnctions.map(f => f.code).join(', ')}}
+                            {{ listToString(slotProps.data.fnctions, 'code') }}
                         </span>
-                        <span v-else>-</span>
+                        <span v-else>-
+                        </span>
                     </template>
                 </Column>
 
@@ -352,19 +365,19 @@ watch(fnctionCodes, (newFns) => {
             <div class="flex flex-col gap-6">
                 <div>
                     <label for="name" class="block font-bold mb-3">Username</label>
-                    <InputText id="name" v-model.trim="user.name" required="true" autofocus
+                    <InputText id="name" v-model.trim="user.name" autofocus
                         :invalid="submitted && !user.name" fluid />
                     <small v-if="submitted && !user.name" class="text-red-500">Name is required.</small>
                 </div>
                 <div>
                     <label for="email" class="block font-bold mb-3">Email</label>
-                    <InputText id="email" v-model.trim="user.email" required="true" autofocus
-                        :invalid="submitted && !user.email" fluid />
+                    <InputText id="email" v-model.trim="user.email" :invalid="submitted && !user.email"
+                        fluid />
                     <small v-if="submitted && !user.email" class="text-red-500">Email is required.</small>
                 </div>
                 <div>
                     <label for="password" class="block font-bold mb-3">Password</label>
-                    <InputText id="password" type="password" v-model.trim="user.password" required="true" autofocus
+                    <InputText id="password" type="password" v-model.trim="user.password"
                         :invalid="submitted && !user.password && !user.id" fluid />
                     <small v-if="submitted && !user.password && !user.id" class="text-red-500">Password is
                         required.</small>
@@ -379,13 +392,22 @@ watch(fnctionCodes, (newFns) => {
                     <MultiSelect v-model="roleCodes" display="chip" :options="roles" optionLabel="name"
                         optionValue="code" placeholder="Roles" />
                 </div>
+
                 <div>
                     <label for="fnction" class="font-bold mr-3">Functions</label>
                     <MultiSelect v-model="fnctionCodes" display="chip" :options="fnctions" optionLabel="name"
                         optionValue="code" placeholder="Functions" />
-                    <div v-for="fnCode in fnctionCodes" :key="fnCode" class="ml-4">
+ 
+                    <div v-for="fnCode in fnctionCodes" :key="fnCode" class="ml-4 mt-3">
+                        <label class="font-medium mr-3">{{ fnctionMap[fnCode]?.name }}</label>
+                        <MultiSelect v-model="fnctionPermissions[fnCode]"
+                            :options="fnctionMap[fnCode]?.permissions || []" optionLabel="name"
+                            optionValue="code" display="chip" placeholder="Permissions"
+                            :disabled="!fnctionMap[fnCode]?.permissions?.length" />
                     </div>
+
                 </div>
+
             </div>
             <template #footer>
                 <Button label="Cancel" icon="pi pi-times" text @click="hideDialog" />

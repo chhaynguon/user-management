@@ -14,6 +14,7 @@ class GroupController extends Controller
     {
         $groups = Group::with('roles')->get();
         return response()->json($groups);
+        
     }
 
     // Show single group by code

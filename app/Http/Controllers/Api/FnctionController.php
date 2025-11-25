@@ -27,17 +27,27 @@ class FnctionController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'code' => ['required','string','max:100','unique:fnctions,code'],
-            'name' => ['required','string','max:255'],
-            'description' => ['nullable','string'],
-            'permission_codes' => ['nullable','array'],
-            'permission_codes.*' => ['string','exists:permissions,code'],
+            'code' => ['required', 'string', 'max:100', 'unique:fnctions,code'],
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'permission_codes' => ['nullable', 'array'],
+            'permission_codes.*' => ['string', 'exists:permissions,code'],
         ]);
 
-        $fnction = Fnction::create($request->only('code','name','description'));
+        $fnction = Fnction::create($request->only('code', 'name', 'description'));
 
         if (!empty($data['permission_codes'])) {
-            $fnction->permissions()->sync($data['permission_codes']);
+
+            $syncData = [];
+
+            foreach ($data['permission_codes'] as $permCode) {
+                $syncData[$permCode] = [
+                    'fnc_perm_code' => $data['code'] . '.' . $permCode
+                ];
+            }
+
+
+            $fnction->permissions()->sync($syncData);
         }
 
         return response()->json($fnction->load('permissions'), 201);
@@ -49,17 +59,25 @@ class FnctionController extends Controller
         $fnction = Fnction::where('code', $code)->firstOrFail();
 
         $data = $request->validate([
-            'code' => ['required','string','max:100', Rule::unique('fnctions','code')->ignore($fnction->code, 'code')],
-            'name' => ['required','string','max:255'],
-            'description' => ['nullable','string'],
-            'permission_codes' => ['nullable','array'],
-            'permission_codes.*' => ['string','exists:permissions,code'],
+            'code' => ['required', 'string', 'max:100', Rule::unique('fnctions', 'code')->ignore($fnction->code, 'code')],
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'permission_codes' => ['nullable', 'array'],
+            'permission_codes.*' => ['string', 'exists:permissions,code'],
         ]);
 
-        $fnction->update($request->only('code','name','description'));
+        $fnction->update($request->only('code', 'name', 'description'));
 
         if (array_key_exists('permission_codes', $data)) {
-            $fnction->permissions()->sync($data['permission_codes'] ?? []);
+
+            $syncData = [];
+
+            foreach ($data['permission_codes'] as $permCode) {
+                $syncData[$permCode] = [
+                    'fnc_perm_code' => $data['code'] . '.' . $permCode
+                ];
+            }
+            $fnction->permissions()->sync($syncData);
         }
 
         return response()->json($fnction->load('permissions'));

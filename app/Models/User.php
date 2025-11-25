@@ -60,7 +60,7 @@ class User extends Authenticatable
             'id',
             'code'
         )->withPivot('permission_code', 'fnc_perm_code')
-            ->with('permissions');
+        ->with('permissions');
     }
 
     // User belongs to many permissions
@@ -74,5 +74,16 @@ class User extends Authenticatable
             'id',
             'code'
         )->withPivot('fnction_code', 'fnc_perm_code');
+    }
+
+    public function fnctionPermissions()
+    {
+        return $this->belongsToMany(
+            Permission::class,
+            'user_has_fnction_permissions',
+            'user_id',
+            'permission_code'
+        )
+            ->withPivot('function_code');
     }
 }
