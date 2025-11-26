@@ -4,12 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Permission;
 use Carbon\Carbon;
 
 class Fnction extends Model
 {
     use HasFactory;
 
+    protected $table = 'fnctions';
     protected $primaryKey = 'code';
     public $incrementing = false;
     protected $keyType = 'string';

@@ -3,6 +3,7 @@ import { FilterMatchMode } from '@primevue/core/api';
 import { onMounted, ref } from 'vue';
 import FuncService from '@/service/FnctionService';
 import { useToast } from 'primevue';
+import PermissionService from '@/service/PermissionService';
 
 const toast = useToast();
 const fns = ref([]);
@@ -13,9 +14,11 @@ const fnDialog = ref(false);
 const dt = ref();
 const selectedFns = ref([]);
 const submitted = ref(false);
+const permissions = ref([])
 
 onMounted(async () => {
     await fetchFns();
+    await fetchPermission();
 });
 
 const fetchFns = async () => {
@@ -28,6 +31,15 @@ const fetchFns = async () => {
         console.error('Failed to fetch functions:', err);
     }
 }
+
+const fetchPermission = async () => {
+    try {
+        const res = await PermissionService.findAll();
+        permissions.value = res.data;
+    } catch (err) {
+        console.log("Failed to fetch permissions: ", err)
+    }
+};
 
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS },
@@ -48,7 +60,7 @@ function hideDialog() {
 }
 
 function editFn(selectedFn) {
-    fn.value = { ...selectedFn };
+    fn.value = { ...selectedFn, permission_codes: selectedFn.permissions?.map(p => p.code) || [] };
     fnDialog.value = true;
 }
 
@@ -56,56 +68,57 @@ async function saveFn() {
     submitted.value = true;
 
     if (fn.value.code?.trim() && fn.value.name?.trim() && fn.value.description?.trim()) {
-        try {
-            if (!fn.value.id) {
-                // Create new function
-                const res = await FuncService.create({
-                    code: fn.value.code,
-                    name: fn.value.name,
-                    description: fn.value.description,
-                });
+        return;
+    }
+    try {
+        if (!fn.value.id) {
+            // Create new function
+            const res = await FuncService.create({
+                code: fn.value.code,
+                name: fn.value.name,
+                description: fn.value.description,
+            });
 
-                // Add the newly created function to the list
-                fns.value.push(res.data);
+            // Add the newly created function to the list
+            fns.value.push(res.data);
 
-                toast.add({
-                    severity: 'success',
-                    summary: 'Success',
-                    detail: 'Function Created',
-                    life: 3000
-                });
-            } else {
-                // Update existing function
-                const res = await FuncService.update(fn.value.id, {
-                    code: fn.value.code,
-                    name: fn.value.name,
-                    description: fn.value.description,
-                });
-
-                fns.value[index] = res.data;
-
-                toast.add({
-                    severity: 'success',
-                    summary: 'Success',
-                    detail: 'Function Updated',
-                    life: 3000
-                });
-            }
-
-            // Reset form
-            fnDialog.value = false;
-            fn.value = {};
-            submitted.value = false;
-
-        } catch (error) {
-            console.error(error);
             toast.add({
-                severity: 'error',
-                summary: 'Error',
-                detail: error.response?.data?.message || 'Failed to save function',
+                severity: 'success',
+                summary: 'Success',
+                detail: 'Function Created',
+                life: 3000
+            });
+        } else {
+            // Update existing function
+            const res = await FuncService.update(fn.value.id, {
+                code: fn.value.code,
+                name: fn.value.name,
+                description: fn.value.description,
+            });
+
+            fns.value[index] = res.data;
+
+            toast.add({
+                severity: 'success',
+                summary: 'Success',
+                detail: 'Function Updated',
                 life: 3000
             });
         }
+
+        // Reset form
+        fnDialog.value = false;
+        fn.value = {};
+        submitted.value = false;
+
+    } catch (error) {
+        console.error(error);
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: error.response?.data?.message || 'Failed to save function',
+            life: 3000
+        });
     }
 }
 
@@ -226,9 +239,9 @@ const refresh = async () => {
                     <small v-if="submitted && !fn.description" class="text-red-500">Description is required.</small>
                 </div>
                 <div>
-                    <MultiSelect v-model="fn.permission_codes" :options="permissions" optionLabel="name" optionValue="code"
-                        placeholder="Select groups" />
-
+                    <label for="permission" class="block font-bold mb-3">Permission</label>
+                    <MultiSelect v-model="fn.permission_codes" :options="permissions" optionLabel="name"
+                        optionValue="code" placeholder="Permission" display="chip" />
                 </div>
             </div>
 

@@ -12,7 +12,19 @@ class PermissionController extends Controller
     // List all permissions
     public function index()
     {
-        return response()->json(Permission::all());
+        $permissions = Permission::with('fnctions')->get();
+
+        // Map so each permission includes fnction_code
+        $permissions = $permissions->map(function ($p) {
+            return [
+                'code' => $p->code,
+                'name' => $p->name,
+                'description' => $p->description,
+                'fnction_code' => $p->fnctions->pluck('code')->first() // pick first function if multiple
+            ];
+        });
+
+        return response()->json($permissions);
     }
 
     // Get permission by code

@@ -21,7 +21,6 @@ onMounted(async () => {
 const fetchPermissions = async () => {
     try {
         const res = await PermissionService.findAll();
-        console.log(res)
         permissions.value = res.data;
         console.log("Permissions:", permissions.value)
     } catch (err) {
@@ -48,7 +47,7 @@ function hideDialog() {
 }
 
 function editPermission(selectedPermission) {
-    permission.value = { ...selectedPermission };
+    permission.value = { ...selectedPermission, originalCode: selectedPermission.code };
     permissionDialog.value = true;
 }
 
@@ -56,82 +55,89 @@ function editPermission(selectedPermission) {
 async function savePermission() {
     submitted.value = true;
 
-    if (permission.value.code?.trim() && permission.value.name?.trim() && permission.value.description?.trim()) {
-        try {
-            if (!permission.value.id) {
-                // Create new permission
-                const res = await PermissionService.create({
-                    code: permission.value.code,
-                    name: permission.value.name,
-                    description: permission.value.description,
-                });
-
-                // Add the newly created permission to the list
-                permissions.value.push(res.data);
-
-                toast.add({
-                    severity: 'success',
-                    summary: 'Success',
-                    detail: 'Permission Created',
-                    life: 3000
-                });
-            } else {
-                // Update existing permission
-                const res = await PermissionService.update(permission.value.id, {
-                    code: permission.value.code,
-                    name: permission.value.name,
-                    description: permission.value.description,
-                });
-
-                permissions.value[index] = res.data;
-
-                toast.add({
-                    severity: 'success',
-                    summary: 'Success',
-                    detail: 'Permission Updated',
-                    life: 3000
-                });
+    if (!permission.value.code?.trim() || !permission.value.name?.trim() || !permission.value.description?.trim()) {
+        return;
+    }
+    try {
+        const { originalCode } = permission.value;
+        if (!originalCode) {
+            if (permissions.value.some(p => p.code === permission.value.code)) {
+                toast.add({ severity: 'error', summary: 'Error', detail: 'Permission code already exists', life: 3000 });
+                return;
             }
+            // Create new permission
+            const res = await PermissionService.create({
+                code: permission.value.code,
+                name: permission.value.name,
+                description: permission.value.description,
+            });
 
-            // Reset form
-            permissionDialog.value = false;
-            permission.value = {};
-            submitted.value = false;
+            // Add the newly created permission to the list
+            permissions.value.push(res.data);
 
-        } catch (error) {
-            console.error(error);
             toast.add({
-                severity: 'error',
-                summary: 'Error',
-                detail: error.response?.data?.message || 'Failed to save permission',
+                severity: 'success',
+                summary: 'Success',
+                detail: 'Permission Created',
+                life: 3000
+            });
+        } else {
+            // Update existing permission
+            const res = await PermissionService.update(permission.value.code, {
+                code: permission.value.code,
+                name: permission.value.name,
+                description: permission.value.description,
+            });
+
+            const index = permissions.value.findIndex(p => p.code === originalCode);
+            if (index !== -1) permissions.value[index] = res.data;
+
+            toast.add({
+                severity: 'success',
+                summary: 'Success',
+                detail: 'Permission Updated',
                 life: 3000
             });
         }
+
+        // Reset form
+        permissionDialog.value = false;
+        permission.value = {};
+        submitted.value = false;
+
+    } catch (error) {
+        console.error(error);
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: error.response?.data?.message || 'Failed to save permission',
+            life: 3000
+        });
     }
 }
 
-function deletePermission() {
+async function deletePermission() {
     try {
-        PermissionService.delete(permission.value.id); // make sure PermissionService has a delete method
-        permissions.value = permissions.value.filter(u => u.id !== permission.value.id);
-        refresh();
-        toast.add({ severity: 'success', summary: 'Successful', detail: 'Permission Deleted', life: 3000 });
+        await PermissionService.delete(permission.value.code); // make sure PermissionService has a delete method
+        permissions.value = permissions.value.filter(u => u.code !== permission.value.code);
+        selectedPermissions.value = [];
         deletePermissionDialog.value = false;
         permission.value = {};
+        toast.add({ severity: 'success', summary: 'Successful', detail: 'Permission Deleted', life: 3000 });
     } catch (error) {
         toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete permission', life: 3000 });
     }
 
 }
 
-function deleteSelectedPermissions() {
+async function deleteSelectedPermissions() {
     try {
-        const ids = selectedPermissions.value.map(u => u.id);
-        Promise.all(ids.map(id => PermissionService.delete(id))); // call API for each
-        permissions.value = permissions.value.filter(u => !ids.includes(u.id));
-        toast.add({ severity: 'success', summary: 'Successful', detail: 'Permissions Deleted', life: 3000 });
+        const codes = selectedPermissions.value.map(u => u.code);
+        await Promise.all(codes.map(code => PermissionService.delete(code))); // call API for each
+        permissions.value = permissions.value.filter(u => !codes.includes(u.code));
         deletePermissionsDialog.value = false;
         selectedPermissions.value = [];
+        toast.add({ severity: 'success', summary: 'Successful', detail: 'Permissions Deleted', life: 3000 });
     } catch (error) {
         toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete selected permissions', life: 3000 });
     }
@@ -148,8 +154,7 @@ function confirmDeleteSelected() {
 
 const refresh = async () => {
     try {
-        const res = await PermissionService.findAll();
-        permissions.value = res.data;
+        await fetchPermissions();
         toast.add({ severity: 'success', summary: 'Refreshed', detail: 'Permission list updated', life: 2000 });
     } catch (err) {
         console.error(err);
@@ -195,7 +200,6 @@ const refresh = async () => {
                 <Column field="code" header="Code" sortable style="min-width: 12rem"></Column>
                 <Column field="name" header="Name" sortable style="min-width: 12rem"></Column>
                 <Column field="description" header="Description" sortable style="min-width: 15rem"></Column>
-                <Column field="created_at" header="Created at" sortable style="min-width: 16rem"></Column>
                 <Column :exportable="false" style="min-width: 12rem">
                     <template #body="slotProps">
                         <Button icon="pi pi-pencil" outlined rounded class="mr-2"
@@ -212,9 +216,8 @@ const refresh = async () => {
             <div class="flex flex-col gap-6">
                 <div>
                     <label for="code" class="block font-bold mb-3">Permission code</label>
-                    <InputText id="code" v-model.trim="permission.code" required="true" autofocus
-                        :invalid="submitted && !permission.code" fluid />
-                    <small v-if="submitted && !permission.code" class="text-red-500">Code is required.</small>
+                    <InputText id="code" v-model.trim="permission.code" required autofocus
+                        :invalid="submitted && !permission.code" fluid :readonly="!!permission.originalCode" />
                 </div>
                 <div>
                     <label for="name" class="block font-bold mb-3">Permission name</label>
@@ -226,7 +229,8 @@ const refresh = async () => {
                     <label for="description" class="block font-bold mb-3">Description</label>
                     <InputText id="description" v-model.trim="permission.description" required="true" autofocus
                         :invalid="submitted && !permission.description" fluid />
-                    <small v-if="submitted && !permission.description" class="text-red-500">Description is required.</small>
+                    <small v-if="submitted && !permission.description" class="text-red-500">Description is
+                        required.</small>
                 </div>
             </div>
 

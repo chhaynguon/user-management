@@ -1,8 +1,10 @@
 <script setup>
 import { FilterMatchMode } from '@primevue/core/api';
+import Tree from 'primevue/tree';
 import { onMounted, ref } from 'vue';
 import RoleService from '@/service/RoleService';
 import { useToast } from 'primevue';
+import PermissionService from '@/service/PermissionService';
 
 const toast = useToast();
 const roles = ref([]);
@@ -13,21 +15,81 @@ const roleDialog = ref(false);
 const dt = ref();
 const selectedRoles = ref([]);
 const submitted = ref(false);
+const permissions = ref([]);
+const rolePermissions = ref([]);
 
 onMounted(async () => {
     await fetchRoles();
+    await fetchPermissions();
 });
 
 const fetchRoles = async () => {
     try {
-        const res = await RoleService.findAll();
-        console.log(res)
-        roles.value = res.data;
-        console.log("Roles:", roles.value)
+        const res = await RoleService.findAll(); // API returns roles with fnctions and permissions
+
+        roles.value = res.data.map(role => {
+            // Convert fnctions
+            const fnctions = (role.fnctions || []).map(fnc => {
+                // Ensure permissions is an array
+                const permissionsArray = Array.isArray(fnc.permissions)
+                    ? fnc.permissions
+                    : Object.values(fnc.permissions || {});
+
+                const children = permissionsArray.map(p => ({
+                    key: p.pivot?.fnc_perm_code || `${fnc.code}.${p.code}`,
+                    label: p.name,
+                    fnction_code: fnc.code,
+                    permission_code: p.code
+                }));
+
+                return {
+                    key: fnc.code,
+                    label: fnc.name,
+                    children
+                };
+            });
+
+            return {
+                ...role,
+                fnctionsTree: fnctions // this will be used in Tree MultiSelect
+            };
+        });
+
     } catch (err) {
         console.error('Failed to fetch roles:', err);
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to fetch roles' });
     }
-}
+};
+
+
+
+const fetchPermissions = async () => {
+    try {
+        const res = await PermissionService.findAll();
+
+        // Group permissions by function
+        const grouped = {};
+        res.data.forEach(p => {
+            if (!grouped[p.fnction_code]) grouped[p.fnction_code] = [];
+            grouped[p.fnction_code].push({
+                key: `${p.fnction_code}.${p.code}`, // Tree expects unique key
+                label: p.name
+            });
+        });
+
+        permissions.value = Object.keys(grouped).map(fncCode => ({
+            key: fncCode,
+            label: fncCode,
+            children: grouped[fncCode]
+        }));
+
+    } catch (err) {
+        console.error("Failed to fetch permissions:", err);
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to fetch permissions' });
+    }
+};
+
+
 
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS }
@@ -39,6 +101,7 @@ function exportCSV() {
 
 function openNew() {
     role.value = {};
+    rolePermissions.value = [];
     submitted.value = false;
     roleDialog.value = true;
 }
@@ -48,72 +111,60 @@ function hideDialog() {
 }
 
 function editRole(selectedRole) {
-    role.value = { ...selectedRole };
+    role.value = { ...selectedRole, originalCode: selectedRole.code };
+    rolePermissions.value = (selectedRole.fnctions || []).flatMap(fnc =>
+        (Array.isArray(fnc.permissions) ? fnc.permissions : []).map(p => `${fnc.code}.${p.code}`)
+    );
     roleDialog.value = true;
 }
 
 
 async function saveRole() {
     submitted.value = true;
+    if (!role.value.code?.trim() || !role.value.name?.trim() || !role.value.description?.trim()) return;
 
-    if (role.value.code?.trim() && role.value.name?.trim() && role.value.description?.trim()) {
-        try {
-            if (!role.value.id) {
-                // Create new role
-                const res = await RoleService.create({
-                    code: role.value.code,
-                    name: role.value.name,
-                    description: role.value.description,
-                });
+    try {
+        // Map rolePermissions keys back to fnction_code + permission_code
+        const payload = {
+            code: role.value.code,
+            name: role.value.name,
+            description: role.value.description,
+            permissions: rolePermissions.value.map(key => {
+                const [fnction_code, permission_code] = key.split('.');
+                return { fnction_code, permission_code };
+            })
+        };
 
-                // Add the newly created role to the list
-                roles.value.push(res.data);
-
-                toast.add({
-                    severity: 'success',
-                    summary: 'Success',
-                    detail: 'Role Created',
-                    life: 3000
-                });
-            } else {
-                // Update existing role
-                const res = await RoleService.update(role.value.id, {
-                    code: role.value.code,
-                    name: role.value.name,
-                    description: role.value.description,
-                });
-
-                roles.value[index] = res.data;
-
-                toast.add({
-                    severity: 'success',
-                    summary: 'Success',
-                    detail: 'role Updated',
-                    life: 3000
-                });
-            }
-
-            // Reset form
-            roleDialog.value = false;
-            role.value = {};
-            submitted.value = false;
-
-        } catch (error) {
-            console.error(error);
-            toast.add({
-                severity: 'error',
-                summary: 'Error',
-                detail: error.response?.data?.message || 'Failed to save role',
-                life: 3000
-            });
+        if (!role.value.originalCode) {
+            const res = await RoleService.create(payload);
+            roles.value.push(res.data);
+            toast.add({ severity: 'success', summary: 'Success', detail: 'Role Created', life: 3000 });
+        } else {
+            const res = await RoleService.update(role.value.originalCode, payload);
+            const index = roles.value.findIndex(r => r.code === role.value.originalCode);
+            if (index !== -1) roles.value[index] = res.data;
+            toast.add({ severity: 'success', summary: 'Success', detail: 'Role Updated', life: 3000 });
         }
+
+        roleDialog.value = false;
+        role.value = {};
+        rolePermissions.value = [];
+        submitted.value = false;
+    } catch (error) {
+        console.error(error);
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: error.response?.data?.message || 'Failed to save role',
+            life: 3000
+        });
     }
 }
 
 function deleteRole() {
     try {
-        RoleService.delete(role.value.id); // make sure roleService has a delete method
-        roles.value = roles.value.filter(u => u.id !== role.value.id);
+        RoleService.delete(role.value.code); // make sure roleService has a delete method
+        roles.value = roles.value.filter(u => u.code !== role.value.code);
         refresh();
         toast.add({ severity: 'success', summary: 'Successful', detail: 'Role Deleted', life: 3000 });
         deleteRoleDialog.value = false;
@@ -125,9 +176,9 @@ function deleteRole() {
 
 function deleteSelectedRoles() {
     try {
-        const ids = selectedRoles.value.map(u => u.id);
-        Promise.all(ids.map(id => RoleService.delete(id))); // call API for each
-        roles.value = roles.value.filter(u => !ids.includes(u.id));
+        const codes = selectedRoles.value.map(u => u.code);
+        Promise.all(codes.map(code => RoleService.delete(code))); // call API for each
+        roles.value = roles.value.filter(u => !codes.includes(u.code));
         toast.add({ severity: 'success', summary: 'Successful', detail: 'Roles Deleted', life: 3000 });
         deleteRolesDialog.value = false;
         selectedRoles.value = [];
@@ -225,6 +276,12 @@ const refresh = async () => {
                         :invalid="submitted && !role.description" fluid />
                     <small v-if="submitted && !role.description" class="text-red-500">Description is required.</small>
                 </div>
+                <div>
+                    <label for="permission" class="block font-bold mb-3">Permission</label>
+                    <Tree v-model:selection="rolePermissions" :value="permissions" selectionMode="checkbox"
+                        :propagateSelectionUp="true" :propagateSelectionDown="true" display="chip" />
+                </div>
+
             </div>
 
             <template #footer>

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Fnction;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Carbon\Carbon;
@@ -26,7 +27,7 @@ class Permission extends Model
     }
 
     // Permission belongs to many functions
-    public function functions()
+    public function fnctions()
     {
         return $this->belongsToMany(
             Fnction::class,

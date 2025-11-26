@@ -33,7 +33,7 @@ class User extends Authenticatable
             'group_code',  // foreign key on pivot for group
             'id',          // local key on user
             'code'         // local key on group
-        );
+        )->with('roles.permissions');
     }
 
     // User belongs to many roles
@@ -60,7 +60,7 @@ class User extends Authenticatable
             'id',
             'code'
         )->withPivot('permission_code', 'fnc_perm_code')
-        ->with('permissions');
+            ->with('permissions');
     }
 
     // User belongs to many permissions
@@ -85,5 +85,23 @@ class User extends Authenticatable
             'permission_code'
         )
             ->withPivot('function_code');
+    }
+
+    public function allPermissions()
+    {
+        // Direct permissions
+        $direct = $this->permissions()->get();
+
+        // Permissions via roles
+        $rolePerms = $this->roles()->with('permissions')->get()
+            ->pluck('permissions')->flatten();
+
+        // Permissions via groups -> roles -> permissions
+        $groupPerms = $this->groups()->with('roles.permissions')->get()
+            ->pluck('roles')->flatten()
+            ->pluck('permissions')->flatten();
+
+        // Merge all and remove duplicates
+        return $direct->merge($rolePerms)->merge($groupPerms)->unique('code');
     }
 }

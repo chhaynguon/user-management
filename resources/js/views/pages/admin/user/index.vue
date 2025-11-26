@@ -138,6 +138,19 @@ async function saveUser() {
     )
         return;
 
+
+    const fnction_permission = [];
+    fnctionCodes.value.forEach(fnCode => {
+        const perms = fnctionPermissions[fnCode] || [];
+        perms.forEach(permCode => {
+            fnction_permission.push({
+                fnction_code: fnCode,
+                permission_code: permCode,
+                fnc_perm_code: `${fnCode}.${permCode}`
+            });
+        });
+    });
+
     const payload = {
         name: user.value.name,
         email: user.value.email,
@@ -145,7 +158,7 @@ async function saveUser() {
         group_code: groupCodes.value,
         role_code: roleCodes.value,
         fnction_code: fnctionCodes.value,
-        fnction_permission: { ...fnctionPermissions },
+        fnction_permission
     };
 
     try {
@@ -346,8 +359,7 @@ const listToString = (arr, key) => arr?.map(x => x[key]).join(', ') || '-';
                         <span v-if="slotProps.data.fnctions?.length">
                             {{ listToString(slotProps.data.fnctions, 'code') }}
                         </span>
-                        <span v-else>-
-                        </span>
+                        <span v-else>-</span>
                     </template>
                 </Column>
 
@@ -361,18 +373,16 @@ const listToString = (arr, key) => arr?.map(x => x[key]).join(', ') || '-';
             </DataTable>
         </div>
 
-        <Dialog v-model:visible="userDialog" :style="{ width: '450px' }" header="User Details" :modal="true">
-            <div class="flex flex-col gap-6">
+        <Dialog v-model:visible="userDialog" :style="{ width: '800px' }" header="User Details" :modal="true">
+            <div>
                 <div>
                     <label for="name" class="block font-bold mb-3">Username</label>
-                    <InputText id="name" v-model.trim="user.name" autofocus
-                        :invalid="submitted && !user.name" fluid />
+                    <InputText id="name" v-model.trim="user.name" autofocus :invalid="submitted && !user.name" fluid />
                     <small v-if="submitted && !user.name" class="text-red-500">Name is required.</small>
                 </div>
                 <div>
                     <label for="email" class="block font-bold mb-3">Email</label>
-                    <InputText id="email" v-model.trim="user.email" :invalid="submitted && !user.email"
-                        fluid />
+                    <InputText id="email" v-model.trim="user.email" :invalid="submitted && !user.email" fluid />
                     <small v-if="submitted && !user.email" class="text-red-500">Email is required.</small>
                 </div>
                 <div>
@@ -382,30 +392,31 @@ const listToString = (arr, key) => arr?.map(x => x[key]).join(', ') || '-';
                     <small v-if="submitted && !user.password && !user.id" class="text-red-500">Password is
                         required.</small>
                 </div>
-                <div>
-                    <label for="group" class="font-bold mr-3">Groups</label>
-                    <MultiSelect v-model="groupCodes" display="chip" :options="groups" optionLabel="name"
-                        optionValue="code" placeholder="Groups" />
-                </div>
-                <div>
-                    <label for="role" class="font-bold mr-3">Roles</label>
-                    <MultiSelect v-model="roleCodes" display="chip" :options="roles" optionLabel="name"
-                        optionValue="code" placeholder="Roles" />
-                </div>
-
-                <div>
-                    <label for="fnction" class="font-bold mr-3">Functions</label>
-                    <MultiSelect v-model="fnctionCodes" display="chip" :options="fnctions" optionLabel="name"
-                        optionValue="code" placeholder="Functions" />
- 
-                    <div v-for="fnCode in fnctionCodes" :key="fnCode" class="ml-4 mt-3">
-                        <label class="font-medium mr-3">{{ fnctionMap[fnCode]?.name }}</label>
-                        <MultiSelect v-model="fnctionPermissions[fnCode]"
-                            :options="fnctionMap[fnCode]?.permissions || []" optionLabel="name"
-                            optionValue="code" display="chip" placeholder="Permissions"
-                            :disabled="!fnctionMap[fnCode]?.permissions?.length" />
+                <div class="col-span-2 mt-2">
+                    <div class="flex">
+                        <label for="group" class="font-bold mr-3 text-base">Groups</label>
+                        <MultiSelect v-model="groupCodes" display="chip" :options="groups"
+                            optionLabel="name" optionValue="code" placeholder="Groups" />
+                    </div>
+                    <div>
+                        <label for="role" class="font-bold mr-3">Roles</label>
+                        <MultiSelect v-model="roleCodes" display="chip" :options="roles" optionLabel="name"
+                            optionValue="code" placeholder="Roles" />
                     </div>
 
+                    <div>
+                        <label for="fnction" class="font-bold mr-4">Functions</label>
+                        <MultiSelect v-model="fnctionCodes" display="chip" :options="fnctions" optionLabel="name"
+                            optionValue="code" placeholder="Functions" />
+
+                        <div v-for="fnCode in fnctionCodes" :key="fnCode" class="ml-4 mt-4">
+                            <label class="font-medium mr-4">{{ fnctionMap[fnCode]?.name }}</label>
+                            <MultiSelect v-model="fnctionPermissions[fnCode]"
+                                :options="fnctionMap[fnCode]?.permissions || []" optionLabel="name" optionValue="code"
+                                display="chip" placeholder="Permissions"
+                                :disabled="!fnctionMap[fnCode]?.permissions?.length" />
+                        </div>
+                    </div>
                 </div>
 
             </div>

@@ -38,6 +38,11 @@ class Role extends Model
         );
     }
 
+    public function functionPermissions()
+    {
+        return $this->hasMany(RoleHasPermission::class, 'role_code', 'code');
+    }
+
     // Role belongs to many users
     public function users()
     {
