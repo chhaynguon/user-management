@@ -27,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('fnction_has_permission');
+        Schema::dropIfExists('fnction_has_permissions');
     }
 };

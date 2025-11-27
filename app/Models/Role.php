@@ -61,11 +61,11 @@ class Role extends Model
     {
         return $this->belongsToMany(
             Permission::class,
-            'role_has_permissions',
-            'role_code',
-            'permission_code',
-            'code',
-            'code'
-        )->withPivot('fnction_code', 'fnc_perm_code');
+            'role_has_permissions', // Use this table
+            'role_code',            // Foreign key on pivot for Role
+            'permission_code',      // Foreign key on pivot for Permission
+            'code',                 // Local key on Role
+            'code'                  // Local key on Permission
+        )->withPivot('fnction_code', 'fnc_perm_code')->withTimestamps();
     }
 }

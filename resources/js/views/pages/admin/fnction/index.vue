@@ -1,7 +1,8 @@
 <script setup>
 import { FilterMatchMode } from '@primevue/core/api';
+import TreeSelect from 'primevue/treeselect';
 import { onMounted, ref } from 'vue';
-import FuncService from '@/service/FnctionService';
+import FncService from '@/service/FnctionService';
 import { useToast } from 'primevue';
 import PermissionService from '@/service/PermissionService';
 
@@ -15,6 +16,7 @@ const dt = ref();
 const selectedFns = ref([]);
 const submitted = ref(false);
 const permissions = ref([])
+const treePermissions = ref([]); // transformed data
 
 onMounted(async () => {
     await fetchFns();
@@ -23,8 +25,7 @@ onMounted(async () => {
 
 const fetchFns = async () => {
     try {
-        const res = await FuncService.findAll();
-        console.log(res)
+        const res = await FncService.findAll();
         fns.value = res.data;
         console.log("Functions:", fns.value)
     } catch (err) {
@@ -36,8 +37,20 @@ const fetchPermission = async () => {
     try {
         const res = await PermissionService.findAll();
         permissions.value = res.data;
+
+        // Group by function code
+        const grouped = {};
+        permissions.value.forEach(p => {
+            const parent = p.code.split('.')[0];
+            if (!grouped[parent]) grouped[parent] = { key: parent, label: parent, children: [] };
+            grouped[parent].children.push({ key: p.code, label: p.name, value: p.code }); // value = full permission code
+        });
+
+        // Include children in treePermissions
+        treePermissions.value = Object.values(grouped);
+
     } catch (err) {
-        console.log("Failed to fetch permissions: ", err)
+        console.error("Failed to fetch permissions: ", err);
     }
 };
 
@@ -60,59 +73,66 @@ function hideDialog() {
 }
 
 function editFn(selectedFn) {
-    fn.value = { ...selectedFn, permission_codes: selectedFn.permissions?.map(p => p.code) || [] };
+    // Map existing permissions to parent codes
+    const parentCodes = Array.from(
+        new Set((selectedFn.permissions || []).map(p => p.code.split('.')[0]))
+    );
+
+    fn.value = {
+        ...selectedFn,
+        originalCode: selectedFn.code,      // Keep original code for updates
+        permission_codes: parentCodes       // Bind to TreeSelect
+    };
+
     fnDialog.value = true;
 }
 
 async function saveFn() {
     submitted.value = true;
 
-    if (fn.value.code?.trim() && fn.value.name?.trim() && fn.value.description?.trim()) {
+    // Basic validation
+    if (!fn.value.code?.trim() || !fn.value.name?.trim() || !fn.value.description?.trim()) {
         return;
     }
+
+    const parentKeys = treePermissions.value.map(tp => tp.key);
+    const selectedParents = Array.isArray(fn.value.permission_codes)
+        ? fn.value.permission_codes.filter(code => parentKeys.includes(code))
+        : [];
+
+    const payload = {
+        code: fn.value.code,
+        name: fn.value.name,
+        description: fn.value.description,
+        permission_codes: selectedParents
+    };
+
     try {
-        if (!fn.value.id) {
-            // Create new function
-            const res = await FuncService.create({
-                code: fn.value.code,
-                name: fn.value.name,
-                description: fn.value.description,
-            });
+        const isNew = !fn.value.originalCode;
 
-            // Add the newly created function to the list
+        let res;
+        if (isNew) {
+            res = await FncService.create(payload);
             fns.value.push(res.data);
-
-            toast.add({
-                severity: 'success',
-                summary: 'Success',
-                detail: 'Function Created',
-                life: 3000
-            });
         } else {
-            // Update existing function
-            const res = await FuncService.update(fn.value.id, {
-                code: fn.value.code,
-                name: fn.value.name,
-                description: fn.value.description,
-            });
-
-            fns.value[index] = res.data;
-
-            toast.add({
-                severity: 'success',
-                summary: 'Success',
-                detail: 'Function Updated',
-                life: 3000
-            });
+            // Use originalCode to find the correct function in DB
+            res = await FncService.update(fn.value.originalCode, payload);
+            const codex = fns.value.findIndex(f => f.code === fn.value.originalCode);
+            if (codex !== -1) fns.value[codex] = res.data;
         }
 
-        // Reset form
+        toast.add({
+            severity: 'success',
+            summary: 'Success',
+            detail: 'Function saved successfully',
+            life: 3000
+        });
+
         fnDialog.value = false;
         fn.value = {};
         submitted.value = false;
 
     } catch (error) {
-        console.error(error);
         toast.add({
             severity: 'error',
             summary: 'Error',
@@ -122,10 +142,10 @@ async function saveFn() {
     }
 }
 
-function deleteFn() {
+async function deleteFn() {
     try {
-        FuncService.delete(fn.value.id); // make sure fnService has a delete method
-        fns.value = fns.value.filter(u => u.id !== fn.value.id);
+        await FncService.delete(fn.value.code); // make sure fnService has a delete method
+        fns.value = fns.value.filter(u => u.code !== fn.value.code);
         refresh();
         toast.add({ severity: 'success', summary: 'Successful', detail: 'Function Deleted', life: 3000 });
         deleteFnDialog.value = false;
@@ -136,11 +156,11 @@ function deleteFn() {
 
 }
 
-function deleteSelectedFns() {
+async function deleteSelectedFns() {
     try {
-        const ids = selectedFns.value.map(u => u.id);
-        Promise.all(ids.map(id => FuncService.delete(id))); // call API for each
-        fns.value = fns.value.filter(u => !ids.includes(u.id));
+        const codes = selectedFns.value.map(u => u.code);
+        await Promise.all(codes.map(codes => FncService.delete(codes))); // call API for each
+        fns.value = fns.value.filter(u => !codes.includes(u.code));
         toast.add({ severity: 'success', summary: 'Successful', detail: 'Functions Deleted', life: 3000 });
         deleteFnsDialog.value = false;
         selectedFns.value = [];
@@ -160,7 +180,7 @@ function confirmDeleteSelected() {
 
 const refresh = async () => {
     try {
-        const res = await FuncService.findAll();
+        const res = await FncService.findAll();
         fns.value = res.data;
         toast.add({ severity: 'success', summary: 'Refreshed', detail: 'Function list updated', life: 2000 });
     } catch (err) {
@@ -188,7 +208,7 @@ const refresh = async () => {
             </Toolbar>
 
             <DataTable ref="dt" v-model:selection="selectedFns" :value="fns" dataKey="code" :paginator="true" :rows="10"
-                :filters="filters" :globalFilterFields="['code', 'name', 'email']"
+                :filters="filters" :globalFilterFields="['code', 'name']"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
                 :rowsPerPageOptions="[5, 10, 25]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} functions">
@@ -240,9 +260,24 @@ const refresh = async () => {
                 </div>
                 <div>
                     <label for="permission" class="block font-bold mb-3">Permission</label>
-                    <MultiSelect v-model="fn.permission_codes" :options="permissions" optionLabel="name"
-                        optionValue="code" placeholder="Permission" display="chip" />
+                    <TreeSelect v-model="fn.permission_codes" :options="treePermissions" optionLabel="label"
+                        optionValue="key" :multiple="true" selectionMode="checkbox" filter showClear display="chip"
+                        placeholder="Select permissions" class="w-full">
+                        <template #dropdownicon>
+                            <i class="pi pi-search" />
+                        </template>
+                        <template #footer>
+                            <div class="px-3 pt-1 pb-2 flex">
+                                <Button label="Remove All" severity="danger" text size="small" icon="pi pi-times"
+                                    @click="fn.permission_codes = []" />
+                            </div>
+                        </template>
+                    </TreeSelect>
+
+
                 </div>
+
+
             </div>
 
             <template #footer>

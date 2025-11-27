@@ -1,10 +1,11 @@
 <script setup>
 import { FilterMatchMode } from '@primevue/core/api';
-import Tree from 'primevue/tree';
+import TreeSelect from 'primevue/treeselect';
 import { onMounted, ref } from 'vue';
 import RoleService from '@/service/RoleService';
 import { useToast } from 'primevue';
 import PermissionService from '@/service/PermissionService';
+import FnctionService from '@/service/FnctionService';
 
 const toast = useToast();
 const roles = ref([]);
@@ -57,38 +58,29 @@ const fetchRoles = async () => {
 
     } catch (err) {
         console.error('Failed to fetch roles:', err);
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to fetch roles' });
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to fetch roles', life: 3000 });
     }
 };
-
 
 
 const fetchPermissions = async () => {
     try {
-        const res = await PermissionService.findAll();
+        const res = await FnctionService.findAll();
+        // MUST return: [ { code, name, permissions: [ {code, name} ] } ]
 
-        // Group permissions by function
-        const grouped = {};
-        res.data.forEach(p => {
-            if (!grouped[p.fnction_code]) grouped[p.fnction_code] = [];
-            grouped[p.fnction_code].push({
-                key: `${p.fnction_code}.${p.code}`, // Tree expects unique key
+        permissions.value = res.data.map(fnc => ({
+            key: fnc.code,
+            label: fnc.name,
+            children: fnc.permissions.map(p => ({
+                key: `${fnc.code}.${p.code}`,
                 label: p.name
-            });
-        });
-
-        permissions.value = Object.keys(grouped).map(fncCode => ({
-            key: fncCode,
-            label: fncCode,
-            children: grouped[fncCode]
+            }))
         }));
 
     } catch (err) {
-        console.error("Failed to fetch permissions:", err);
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to fetch permissions' });
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to load functions + permissions', life: 3000 });
     }
 };
-
 
 
 const filters = ref({
@@ -101,71 +93,74 @@ function exportCSV() {
 
 function openNew() {
     role.value = {};
-    rolePermissions.value = [];
+    rolePermissions.value = {};
     submitted.value = false;
     roleDialog.value = true;
 }
 function hideDialog() {
     roleDialog.value = false;
     submitted.value = false;
+    rolePermissions.value = {};
 }
 
 function editRole(selectedRole) {
     role.value = { ...selectedRole, originalCode: selectedRole.code };
-    rolePermissions.value = (selectedRole.fnctions || []).flatMap(fnc =>
-        (Array.isArray(fnc.permissions) ? fnc.permissions : []).map(p => `${fnc.code}.${p.code}`)
-    );
+
+    const keys = [];
+
+    selectedRole.fnctions?.forEach(fnc => {
+        const permissionsArray = Array.isArray(fnc.permissions)
+            ? fnc.permissions
+            : Object.values(fnc.permissions || {}); // convert object to array
+
+        permissionsArray.forEach(p => {
+            const key = `${fnc.code}.${p.code}`;
+            keys.push(key);
+        });
+    });
+
+    rolePermissions.value = arrayToSelectionKeys(keys);
     roleDialog.value = true;
 }
 
-
 async function saveRole() {
     submitted.value = true;
-    if (!role.value.code?.trim() || !role.value.name?.trim() || !role.value.description?.trim()) return;
+    if (!role.value.code?.trim() || !role.value.name?.trim()) return;
+
+    const selectedKeys = selectionKeys(rolePermissions.value).filter(key => key.includes("."));
+
+    const payload = {
+        code: role.value.code,
+        name: role.value.name,
+        description: role.value.description,
+        permissions: selectedKeys.map(key => {
+            const [fnction_code, permission_code] = key.split(".");
+            return { fnction_code, permission_code, fnc_perm_code: key };
+        })
+    };
+
 
     try {
-        // Map rolePermissions keys back to fnction_code + permission_code
-        const payload = {
-            code: role.value.code,
-            name: role.value.name,
-            description: role.value.description,
-            permissions: rolePermissions.value.map(key => {
-                const [fnction_code, permission_code] = key.split('.');
-                return { fnction_code, permission_code };
-            })
-        };
-
         if (!role.value.originalCode) {
-            const res = await RoleService.create(payload);
-            roles.value.push(res.data);
-            toast.add({ severity: 'success', summary: 'Success', detail: 'Role Created', life: 3000 });
+            await RoleService.create(payload);
         } else {
-            const res = await RoleService.update(role.value.originalCode, payload);
-            const index = roles.value.findIndex(r => r.code === role.value.originalCode);
-            if (index !== -1) roles.value[index] = res.data;
-            toast.add({ severity: 'success', summary: 'Success', detail: 'Role Updated', life: 3000 });
+            await RoleService.update(role.value.originalCode, payload);
         }
 
+        toast.add({ severity: "success", summary: "Success", detail: "Role saved", life: 3000 });
         roleDialog.value = false;
-        role.value = {};
-        rolePermissions.value = [];
-        submitted.value = false;
+        await fetchRoles();
+
     } catch (error) {
-        console.error(error);
-        toast.add({
-            severity: 'error',
-            summary: 'Error',
-            detail: error.response?.data?.message || 'Failed to save role',
-            life: 3000
-        });
+        toast.add({ severity: "error", summary: "Error", detail: "Failed to save role", life: 3000 });
     }
 }
 
-function deleteRole() {
+
+async function deleteRole() {
     try {
-        RoleService.delete(role.value.code); // make sure roleService has a delete method
+        await RoleService.delete(role.value.code); // make sure roleService has a delete method
         roles.value = roles.value.filter(u => u.code !== role.value.code);
-        refresh();
         toast.add({ severity: 'success', summary: 'Successful', detail: 'Role Deleted', life: 3000 });
         deleteRoleDialog.value = false;
         role.value = {};
@@ -174,10 +169,10 @@ function deleteRole() {
     }
 }
 
-function deleteSelectedRoles() {
+async function deleteSelectedRoles() {
     try {
         const codes = selectedRoles.value.map(u => u.code);
-        Promise.all(codes.map(code => RoleService.delete(code))); // call API for each
+        await Promise.all(codes.map(code => RoleService.delete(code))); // call API for each
         roles.value = roles.value.filter(u => !codes.includes(u.code));
         toast.add({ severity: 'success', summary: 'Successful', detail: 'Roles Deleted', life: 3000 });
         deleteRolesDialog.value = false;
@@ -198,14 +193,26 @@ function confirmDeleteSelected() {
 
 const refresh = async () => {
     try {
-        const res = await RoleService.findAll();
-        roles.value = res.data;
+        await fetchRoles();
         toast.add({ severity: 'success', summary: 'Refreshed', detail: 'Role list updated', life: 2000 });
     } catch (err) {
         console.error(err);
         toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to refresh roles', life: 3000 });
     }
 }
+
+function arrayToSelectionKeys(arr) {
+    const obj = {};
+    arr.forEach(key => {
+        obj[key] = { checked: true };
+    });
+    return obj;
+}
+
+function selectionKeys(obj) {
+    return Object.keys(obj).filter(k => obj[k].checked);
+}
+
 
 </script>
 
@@ -226,7 +233,7 @@ const refresh = async () => {
             </Toolbar>
 
             <DataTable ref="dt" v-model:selection="selectedRoles" :value="roles" dataKey="code" :paginator="true"
-                :rows="10" :filters="filters" :globalFilterFields="['code', 'name', 'email']"
+                :rows="10" :filters="filters" :globalFilterFields="['code', 'name']"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
                 :rowsPerPageOptions="[5, 10, 25]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} roles">
@@ -266,21 +273,39 @@ const refresh = async () => {
                 </div>
                 <div>
                     <label for="name" class="block font-bold mb-3">Role name</label>
-                    <InputText id="name" v-model.trim="role.name" required="true" autofocus
-                        :invalid="submitted && !role.name" fluid />
+                    <InputText id="name" v-model.trim="role.name" required="true" :invalid="submitted && !role.name"
+                        fluid />
                     <small v-if="submitted && !role.name" class="text-red-500">Name is required.</small>
                 </div>
                 <div>
                     <label for="description" class="block font-bold mb-3">Description</label>
-                    <InputText id="description" v-model.trim="role.description" required="true" autofocus
+                    <InputText id="description" v-model.trim="role.description" required="true"
                         :invalid="submitted && !role.description" fluid />
                     <small v-if="submitted && !role.description" class="text-red-500">Description is required.</small>
                 </div>
+                <!-- <div>
+                    <label for="permission" class="block font-bold mb-3">Permission</label>
+                    <TreeSelect v-model:selectionKeys="rolePermissions" :value="permissions" selectionMode="checkbox"
+                        :propagateSelectionUp="true" :propagateSelectionDown="true" display="chip" />
+                </div> -->
                 <div>
                     <label for="permission" class="block font-bold mb-3">Permission</label>
-                    <Tree v-model:selection="rolePermissions" :value="permissions" selectionMode="checkbox"
-                        :propagateSelectionUp="true" :propagateSelectionDown="true" display="chip" />
+                    <TreeSelect v-model="rolePermissions" :options="permissions" placeholder="Select permissions"
+                        class="w-full" optionLabel="label" optionValue="key" :multiple="true" filter showClear selectionMode="checkbox" display="chip">
+                        <!-- Optional dropdown icon -->
+                        <template #dropdownicon>
+                            <i class="pi pi-search" />
+                        </template>
+                        <!-- Optional footer -->
+                        <template #footer>
+                            <div class="px-3 pt-1 pb-2 flex">
+                                <Button label="Remove All" severity="danger" text size="small" icon="pi pi-times"
+                                    @click="rolePermissions = []" />
+                            </div>
+                        </template>
+                    </TreeSelect>
                 </div>
+
 
             </div>
 

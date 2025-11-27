@@ -71,7 +71,7 @@ class RoleController extends Controller
                         'permission_code' => $p->pivot->permission_code,
                         'fnc_perm_code' => $p->pivot->fnc_perm_code,
                     ]
-                ]);
+                ])->values();
 
             return [
                 'code' => $fnc->code,
@@ -109,18 +109,19 @@ class RoleController extends Controller
 
         if (!empty($data['permissions'])) {
             $syncData = [];
-
             foreach ($data['permissions'] as $perm) {
-                $fncPermCode = $perm['fnction_code'] . '.' . $perm['permission_code'];
-                $syncData[$fncPermCode] = [
+                $syncData[$perm['permission_code']] = [
                     'fnction_code' => $perm['fnction_code'],
-                    'permission_code' => $perm['permission_code'],
-                    'fnc_perm_code' => $fncPermCode,
+                    'fnc_perm_code' => $perm['fnction_code'] . '.' . $perm['permission_code'],
                 ];
             }
-
             $role->permissions()->sync($syncData);
+        } else {
+            $role->permissions()->detach();
         }
+
+
+
 
         return response()->json($role->load('permissions'), 201);
     }
@@ -143,18 +144,18 @@ class RoleController extends Controller
 
         if (!empty($data['permissions'])) {
             $syncData = [];
-
             foreach ($data['permissions'] as $perm) {
-                $fncPermCode = $perm['fnction_code'] . '.' . $perm['permission_code'];
-                $syncData[$fncPermCode] = [
+                $syncData[$perm['permission_code']] = [
                     'fnction_code' => $perm['fnction_code'],
-                    'permission_code' => $perm['permission_code'],
-                    'fnc_perm_code' => $fncPermCode,
+                    'fnc_perm_code' => $perm['fnction_code'] . '.' . $perm['permission_code'],
                 ];
             }
-
             $role->permissions()->sync($syncData);
+        } else {
+            $role->permissions()->detach();
         }
+
+
 
         return response()->json($role->load('permissions'));
     }

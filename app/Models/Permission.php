@@ -49,7 +49,8 @@ class Permission extends Model
             'role_code',
             'code',
             'code'
-        )->withPivot('fnction_code', 'fnc_perm_code');
+        )->withPivot('fnction_code', 'fnc_perm_code')
+        ->withTimestamps();
     }
 
     // Permission belongs to many users

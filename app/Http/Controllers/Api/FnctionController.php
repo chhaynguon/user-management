@@ -37,18 +37,16 @@ class FnctionController extends Controller
         $fnction = Fnction::create($request->only('code', 'name', 'description'));
 
         if (!empty($data['permission_codes'])) {
-
             $syncData = [];
-
             foreach ($data['permission_codes'] as $permCode) {
                 $syncData[$permCode] = [
-                    'fnc_perm_code' => $data['code'] . '.' . $permCode
+                    'fnc_perm_code' => $fnction->code . '.' . $permCode
                 ];
             }
-
-
             $fnction->permissions()->sync($syncData);
         }
+
+
 
         return response()->json($fnction->load('permissions'), 201);
     }
@@ -66,29 +64,30 @@ class FnctionController extends Controller
             'permission_codes.*' => ['string', 'exists:permissions,code'],
         ]);
 
+        // Update function
         $fnction->update($request->only('code', 'name', 'description'));
 
-        if (array_key_exists('permission_codes', $data)) {
-
+        // Sync permissions if provided
+        if (!empty($data['permission_codes'])) {
             $syncData = [];
-
             foreach ($data['permission_codes'] as $permCode) {
                 $syncData[$permCode] = [
-                    'fnc_perm_code' => $data['code'] . '.' . $permCode
+                    'fnc_perm_code' => $fnction->code . '.' . $permCode
                 ];
             }
             $fnction->permissions()->sync($syncData);
         }
 
+
         return response()->json($fnction->load('permissions'));
     }
+
 
     // Delete function by code
     public function destroy($code)
     {
         $fnction = Fnction::where('code', $code)->firstOrFail();
-        $fnction->delete();
-
+        $fnction->delete(); // cascades to pivot table
         return response()->json(['message' => 'Function deleted successfully.']);
     }
 }

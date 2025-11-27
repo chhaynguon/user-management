@@ -175,7 +175,7 @@ const refresh = async () => {
             </Toolbar>
 
             <DataTable ref="dt" v-model:selection="selectedGroups" :value="groups" dataKey="code" :paginator="true"
-                :rows="10" :filters="filters" :globalFilterFields="['code', 'name', 'email']"
+                :rows="10" :filters="filters" :globalFilterFields="['code', 'name']"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
                 :rowsPerPageOptions="[5, 10, 25]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} groups">
