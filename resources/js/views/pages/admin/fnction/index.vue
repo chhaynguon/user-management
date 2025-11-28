@@ -1,6 +1,5 @@
 <script setup>
 import { FilterMatchMode } from '@primevue/core/api';
-import TreeSelect from 'primevue/treeselect';
 import { onMounted, ref } from 'vue';
 import FncService from '@/service/FnctionService';
 import { useToast } from 'primevue';
@@ -38,21 +37,18 @@ const fetchPermission = async () => {
         const res = await PermissionService.findAll();
         permissions.value = res.data;
 
-        // Group by function code
-        const grouped = {};
-        permissions.value.forEach(p => {
-            const parent = p.code.split('.')[0];
-            if (!grouped[parent]) grouped[parent] = { key: parent, label: parent, children: [] };
-            grouped[parent].children.push({ key: p.code, label: p.name, value: p.code }); // value = full permission code
-        });
-
-        // Include children in treePermissions
-        treePermissions.value = Object.values(grouped);
+        // Parent-only list
+        treePermissions.value = permissions.value.map(p => ({
+            label: p.name,
+            value: p.code,   // parent only (APPROVAL, CREATE, etc.)
+            key: p.code
+        }));
 
     } catch (err) {
         console.error("Failed to fetch permissions: ", err);
     }
 };
+
 
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS },
@@ -75,7 +71,7 @@ function hideDialog() {
 function editFn(selectedFn) {
     // Map existing permissions to parent codes
     const parentCodes = Array.from(
-        new Set((selectedFn.permissions || []).map(p => p.code.split('.')[0]))
+        new Set((selectedFn.permissions || []).map(p => p.code))
     );
 
     fn.value = {
@@ -99,6 +95,7 @@ async function saveFn() {
     const selectedParents = Array.isArray(fn.value.permission_codes)
         ? fn.value.permission_codes.filter(code => parentKeys.includes(code))
         : [];
+
 
     const payload = {
         code: fn.value.code,
@@ -180,8 +177,7 @@ function confirmDeleteSelected() {
 
 const refresh = async () => {
     try {
-        const res = await FncService.findAll();
-        fns.value = res.data;
+        await fetchFns();
         toast.add({ severity: 'success', summary: 'Refreshed', detail: 'Function list updated', life: 2000 });
     } catch (err) {
         console.error(err);
@@ -260,24 +256,10 @@ const refresh = async () => {
                 </div>
                 <div>
                     <label for="permission" class="block font-bold mb-3">Permission</label>
-                    <TreeSelect v-model="fn.permission_codes" :options="treePermissions" optionLabel="label"
-                        optionValue="key" :multiple="true" selectionMode="checkbox" filter showClear display="chip"
-                        placeholder="Select permissions" class="w-full">
-                        <template #dropdownicon>
-                            <i class="pi pi-search" />
-                        </template>
-                        <template #footer>
-                            <div class="px-3 pt-1 pb-2 flex">
-                                <Button label="Remove All" severity="danger" text size="small" icon="pi pi-times"
-                                    @click="fn.permission_codes = []" />
-                            </div>
-                        </template>
-                    </TreeSelect>
-
-
+                    <MultiSelect v-model="fn.permission_codes" :options="treePermissions" optionLabel="label"
+                        optionValue="value" multiple selectionMode="checkbox" filter showClear display="chip"
+                        placeholder="Select permissions" class="w-full" />
                 </div>
-
-
             </div>
 
             <template #footer>

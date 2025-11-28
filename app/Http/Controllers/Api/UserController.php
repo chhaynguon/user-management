@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Fnction;
 use App\Models\User;
+use App\Models\UserHasPermission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -14,7 +15,17 @@ class UserController extends Controller
 {
     public function index()
     {
-        $users = User::with(['groups', 'roles.permissions', 'fnctions.permissions', 'permissions'])->get();
+        $users = User::with(['groups', 'roles.permissions', 'fnctions' => function($q){
+            $q->withCount('permissions');
+        }, 'permissions'])->orderByDesc('id')->get();
+        // dd($users);
+        $data = $users->map(function($user){
+            $user->fnctions = $user->fnctions->map(function($func) use($user){
+                $func->selectedPermission = UserHasPermission::whereUserId($user->id)->whereFnctionCode($func->code)->pluck('permission_code');
+                return $func;
+            });
+            return $user;
+        });
         return response()->json($users);
     }
 
@@ -46,52 +57,55 @@ class UserController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->validate([
+        // dd($request->all());
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:6',
+
             'group_code' => 'array',
             'role_code' => 'array',
-            'fnction_code' => 'array',
+
             'fnction_permission' => 'array',
             'fnction_permission.*.fnction_code' => 'required|string|exists:fnctions,code',
-            'fnction_permission.*.permission_code' => 'required|string|exists:permissions,code',
-            'fnction_permission.*.fnc_perm_code' => 'required|string|max:255',
+            'fnction_permission.*.permission_code' => 'required|string',
+            'fnction_permission.*.fnc_perm_code' => 'required|string',
+            // 'fnction_permission.*.permission_code.*' => 'string|exists:permissions,code',
         ]);
 
         $user = User::create([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'password' => bcrypt($data['password']),
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => bcrypt($validated['password']),
         ]);
 
-        // Attach groups
-        if (!empty($data['group_code'])) {
-            $user->groups()->sync($data['group_code']);
+        if (!empty($validated['group_code'])) {
+            $user->groups()->sync($validated['group_code']);
         }
 
-        // Attach roles
-        if (!empty($data['role_code'])) {
-            $user->roles()->sync($data['role_code']);
+        if (!empty($validated['role_code'])) {
+            $user->roles()->sync($validated['role_code']);
         }
 
-        // Attach functions + permissions
-        if (!empty($data['fnction_permission'])) {
+        // Insert user permissions
+        if (!empty($validated['fnction_permission'])) {
             $syncData = [];
-            foreach ($data['fnction_permission'] as $fp) {
+
+            foreach ($validated['fnction_permission'] as $item) {
                 $syncData[] = [
-                    'user_id' => $user->id,
-                    'fnction_code' => $fp['fnction_code'],
-                    'permission_code' => $fp['permission_code'],
-                    'fnc_perm_code' => $fp['fnc_perm_code'],
-                ];
+                        'user_id' => $user->id,
+                        'fnction_code' => $item['fnction_code'],
+                        'permission_code' => $item['permission_code'],
+                        'fnc_perm_code' => $item['fnc_perm_code'],
+                    ];
             }
 
-            // Insert into pivot table
             DB::table('user_has_permissions')->insert($syncData);
         }
 
-        return response()->json($user->load(['groups', 'roles', 'fnctions.permissions']));
+        return response()->json(
+            $user->load(['groups', 'roles.permissions', 'fnctions.permissions', 'permissions'])
+        );
     }
 
 
@@ -99,48 +113,53 @@ class UserController extends Controller
     {
         $user = User::findOrFail($id);
 
-        $request->validate([
+        $validated = $request->validate([
             'name' => 'sometimes|string|max:255',
             'email' => ['sometimes', 'email', Rule::unique('users')->ignore($user->id)],
             'password' => 'sometimes|string|min:6',
+
             'group_code' => 'array',
             'role_code' => 'array',
-            'fnction_code' => 'array',
+
             'fnction_permission' => 'array',
             'fnction_permission.*.fnction_code' => 'required|string|exists:fnctions,code',
-            'fnction_permission.*.permission_code' => 'required|string|exists:permissions,code',
-            'fnction_permission.*.fnc_perm_code' => 'required|string|max:255',
+            'fnction_permission.*.permission_codes' => 'required|array',
+            'fnction_permission.*.permission_codes.*' => 'string|exists:permissions,code',
         ]);
 
-        // Hash password if provided
         if ($request->filled('password')) {
-            $request->merge(['password' => Hash::make($request->password)]);
+            $validated['password'] = Hash::make($validated['password']);
         }
 
-        $user->update($request->only(['name', 'email', 'password']));
+        $user->update($validated);
 
-        // Sync groups and roles
         if ($request->filled('group_code')) {
-            $user->groups()->sync($request->group_code);
+            $user->groups()->sync($validated['group_code']);
         }
 
         if ($request->filled('role_code')) {
-            $user->roles()->sync($request->role_code);
+            $user->roles()->sync($validated['role_code']);
         }
 
-        // Sync function permissions
-        $fnPermissions = $request->fnction_permission ?? [];
+        // Delete old permissions
         DB::table('user_has_permissions')->where('user_id', $user->id)->delete();
 
-        foreach ($fnPermissions as $fnctionCode => $permCodes) {
-            foreach ($permCodes as $permCode) {
-                DB::table('user_has_permissions')->insert([
-                    'user_id' => $user->id,
-                    'fnction_code' => $fnctionCode,
-                    'permission_code' => $permCode,
-                    'fnc_perm_code' => $fnctionCode . '.' . $permCode,
-                ]);
+        // Insert new permissions
+        if (!empty($validated['fnction_permission'])) {
+            $syncData = [];
+
+            foreach ($validated['fnction_permission'] as $item) {
+                foreach ($item['permission_codes'] as $permCode) {
+                    $syncData[] = [
+                        'user_id' => $user->id,
+                        'fnction_code' => $item['fnction_code'],
+                        'permission_code' => $permCode,
+                        'fnc_perm_code' => $item['fnction_code'] . '.' . $permCode,
+                    ];
+                }
             }
+
+            DB::table('user_has_permissions')->insert($syncData);
         }
 
         return response()->json(
@@ -178,5 +197,69 @@ class UserController extends Controller
         $user->update($validated);
 
         return response()->json(['message' => 'Profile updated successfully.', 'user' => $user]);
+    }
+
+    public function showWithPermissions($id)
+    {
+        $user = User::with([
+            'roles.permissions',
+            'groups.roles.permissions',
+            'fnctions.permissions'
+        ])->findOrFail($id);
+
+        // Prepare functions array for TreeSelect
+        $functions = $user->fnctions->map(function ($fn) use ($user) {
+            $fnPerms = $fn->permissions->map(function ($p) use ($fn, $user) {
+                // Check if user has this permission in pivot
+                $selected = $user->permissions()
+                    ->wherePivot('fnction_code', $fn->code)
+                    ->wherePivot('permission_code', $p->code)
+                    ->exists();
+
+                return [
+                    'code' => $p->code,
+                    'name' => $p->name,
+                    'selected' => $selected,
+                    'fnc_perm_code' => "{$fn->code}.{$p->code}"
+                ];
+            });
+
+            return [
+                'code' => $fn->code,
+                'name' => $fn->name,
+                'permissions' => $fnPerms
+            ];
+        });
+
+        // Flatten roles and group roles permissions for easy lookup if needed
+        $rolePermissions = $user->roles->map(function ($role) {
+            return [
+                'role_code' => $role->code,
+                'permissions' => $role->permissions->map(fn($p) => $p->code)
+            ];
+        });
+
+        $groupRolePermissions = $user->groups->map(function ($group) {
+            return [
+                'group_code' => $group->code,
+                'roles' => $group->roles->map(function ($role) {
+                    return [
+                        'role_code' => $role->code,
+                        'permissions' => $role->permissions->map(fn($p) => $p->code)
+                    ];
+                })
+            ];
+        });
+
+        return response()->json([
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'groups' => $user->groups,
+            'roles' => $user->roles,
+            'fnctions' => $functions,
+            'role_permissions' => $rolePermissions,
+            'group_role_permissions' => $groupRolePermissions,
+        ]);
     }
 }

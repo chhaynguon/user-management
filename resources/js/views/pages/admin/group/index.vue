@@ -3,6 +3,7 @@ import { FilterMatchMode } from '@primevue/core/api';
 import { onMounted, ref } from 'vue';
 import GroupService from '@/service/GroupService';
 import { useToast } from 'primevue';
+import RoleService from '@/service/RoleService';
 
 const toast = useToast();
 const groups = ref([]);
@@ -13,9 +14,11 @@ const groupDialog = ref(false);
 const dt = ref();
 const selectedGroups = ref([]);
 const submitted = ref(false);
+const roles = ref([]);
 
 onMounted(async () => {
     await fetchGroups();
+    await fetchRoles();
 });
 
 const fetchGroups = async () => {
@@ -29,6 +32,15 @@ const fetchGroups = async () => {
     }
 }
 
+const fetchRoles = async () => {
+    try {
+        const res = await RoleService.findAll();
+        roles.value = res.data.map(r => ({ label: r.name, value: r.code }));
+    } catch (err) {
+        console.error(' Failed to fetch roles: ', err)
+    }
+}
+
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
@@ -38,7 +50,7 @@ function exportCSV() {
 }
 
 function openNew() {
-    group.value = {};
+    group.value = { role_codes: [] };
     submitted.value = false;
     groupDialog.value = true;
 }
@@ -48,72 +60,66 @@ function hideDialog() {
 }
 
 function editGroup(selectedGroup) {
-    group.value = { ...selectedGroup };
+    group.value = { ...selectedGroup, role_codes: selectedGroup.roles?.map(r => r.code) || [] };
+    group.value.original_code = selectedGroup.code;
     groupDialog.value = true;
 }
 
 async function saveGroup() {
     submitted.value = true;
 
-    if (group.value.code?.trim() && group.value.name?.trim() && group.value.description?.trim()) {
-        try {
-            if (!group.value.id) {
-                // Create new group
-                const res = await GroupService.create({
-                    code: group.value.code,
-                    name: group.value.name,
-                    description: group.value.description,
-                });
+    if (!group.value.code?.trim() || !group.value.name?.trim() || !group.value.description?.trim()) return;
+    const payload = {
+        code: group.value.code,
+        name: group.value.name,
+        description: group.value.description,
+        role_codes: group.value.role_codes || [], 
+    };
+    try {
+        if (!group.value.original_code) {
+            // Create new group
+            const res = await GroupService.create(payload);
+            groups.value.push(res.data);
 
-                // Add the newly created group to the list
-                groups.value.push(res.data);
-
-                toast.add({
-                    severity: 'success',
-                    summary: 'Success',
-                    detail: 'Group Created',
-                    life: 3000
-                });
-            } else {
-                // Update existing group
-                const res = await GroupService.update(group.value.id, {
-                    code: group.value.code,
-                    name: group.value.name,
-                    description: group.value.description,
-                });
-
-                groups.value[index] = res.data;
-
-                toast.add({
-                    severity: 'success',
-                    summary: 'Success',
-                    detail: 'group Updated',
-                    life: 3000
-                });
-            }
-
-            // Reset form
-            groupDialog.value = false;
-            group.value = {};
-            submitted.value = false;
-
-        } catch (error) {
-            console.error(error);
             toast.add({
-                severity: 'error',
-                summary: 'Error',
-                detail: error.response?.data?.message || 'Failed to save group',
+                severity: 'success',
+                summary: 'Success',
+                detail: 'Group Created',
+                life: 3000
+            });
+        } else {
+            const res = await GroupService.update(group.value.original_code, payload);
+            const index = groups.value.findIndex(g => g.code === group.value.original_code);
+            groups.value[index] = res.data;
+
+            toast.add({
+                severity: 'success',
+                summary: 'Success',
+                detail: 'group Updated',
                 life: 3000
             });
         }
+
+        // Reset form
+        groupDialog.value = false;
+        group.value = {};
+        submitted.value = false;
+
+    } catch (error) {
+        console.error(error);
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: error.response?.data?.message || 'Failed to save group',
+            life: 3000
+        });
     }
 }
 
-function deleteGroup() {
+async function deleteGroup() {
     try {
-        GroupService.delete(group.value.id); // make sure groupService has a delete method
-        groups.value = groups.value.filter(u => u.id !== group.value.id);
-        refresh();
+        await GroupService.delete(group.value.code); // make sure groupService has a delete method
+        groups.value = groups.value.filter(u => u.code !== group.value.code);
         toast.add({ severity: 'success', summary: 'Successful', detail: 'Group Deleted', life: 3000 });
         deleteGroupDialog.value = false;
         group.value = {};
@@ -123,11 +129,11 @@ function deleteGroup() {
 
 }
 
-function deleteSelectedGroups() {
+async function deleteSelectedGroups() {
     try {
-        const ids = selectedGroups.value.map(u => u.id);
-        Promise.all(ids.map(id => GroupService.delete(id))); // call API for each
-        groups.value = groups.value.filter(u => !ids.includes(u.id));
+        const codes = selectedGroups.value.map(u => u.code);
+        await Promise.all(codes.map(code => GroupService.delete(code))); // call API for each
+        groups.value = groups.value.filter(u => !codes.includes(u.code));
         toast.add({ severity: 'success', summary: 'Successful', detail: 'Groups Deleted', life: 3000 });
         deleteGroupsDialog.value = false;
         selectedGroups.value = [];
@@ -147,8 +153,7 @@ function confirmDeleteSelected() {
 
 const refresh = async () => {
     try {
-        const res = await GroupService.findAll();
-        groups.value = res.data;
+        await fetchGroups();
         toast.add({ severity: 'success', summary: 'Refreshed', detail: 'Group list updated', life: 2000 });
     } catch (err) {
         console.error(err);
@@ -210,7 +215,7 @@ const refresh = async () => {
                 <div>
                     <label for="code" class="block font-bold mb-3">Group code</label>
                     <InputText id="code" v-model.trim="group.code" required="true" autofocus
-                        :invalid="submitted && !group.code" fluid />
+                        :invalid="submitted && !group.code" fluid readonly="true"/>
                     <small v-if="submitted && !group.code" class="text-red-500">Code is required.</small>
                 </div>
                 <div>
@@ -224,6 +229,11 @@ const refresh = async () => {
                     <InputText id="description" v-model.trim="group.description" required="true" autofocus
                         :invalid="submitted && !group.description" fluid />
                     <small v-if="submitted && !group.description" class="text-red-500">Description is required.</small>
+                </div>
+                <div>
+                    <label class="block font-bold mb-3">Roles</label>
+                    <MultiSelect v-model="group.role_codes" :options="roles" optionValue="value" optionLabel="label"
+                        display="chip" placeholder="Select roles" class="w-full" />
                 </div>
             </div>
 

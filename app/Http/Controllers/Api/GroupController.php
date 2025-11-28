@@ -31,7 +31,6 @@ class GroupController extends Controller
             'code' => ['required','string','max:100','unique:groups,code'],
             'name' => ['required','string','max:255'],
             'description' => ['nullable','string'],
-            // optional initial roles: array of role codes
             'role_codes' => ['nullable','array'],
             'role_codes.*' => ['string','exists:roles,code'],
         ]);

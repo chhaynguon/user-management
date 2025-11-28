@@ -4,7 +4,6 @@ import TreeSelect from 'primevue/treeselect';
 import { onMounted, ref } from 'vue';
 import RoleService from '@/service/RoleService';
 import { useToast } from 'primevue';
-import PermissionService from '@/service/PermissionService';
 import FnctionService from '@/service/FnctionService';
 
 const toast = useToast();
@@ -283,11 +282,6 @@ function selectionKeys(obj) {
                         :invalid="submitted && !role.description" fluid />
                     <small v-if="submitted && !role.description" class="text-red-500">Description is required.</small>
                 </div>
-                <!-- <div>
-                    <label for="permission" class="block font-bold mb-3">Permission</label>
-                    <TreeSelect v-model:selectionKeys="rolePermissions" :value="permissions" selectionMode="checkbox"
-                        :propagateSelectionUp="true" :propagateSelectionDown="true" display="chip" />
-                </div> -->
                 <div>
                     <label for="permission" class="block font-bold mb-3">Permission</label>
                     <TreeSelect v-model="rolePermissions" :options="permissions" placeholder="Select permissions"

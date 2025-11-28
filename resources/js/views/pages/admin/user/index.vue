@@ -7,6 +7,7 @@ import RoleService from "@/service/RoleService";
 import { useToast } from "primevue";
 import FnctionService from "@/service/FnctionService";
 import PermissionService from "@/service/PermissionService";
+import TreeSelect from 'primevue/treeselect';
 
 // Primevue
 const toast = useToast();
@@ -31,6 +32,7 @@ const deleteUsersDialog = ref(false);
 const userDialog = ref(false);
 const selectedUsers = ref([]);
 const submitted = ref(false);
+const selectedFnctionPermissionKeys = ref([]);
 
 onMounted(async () => {
     await Promise.all([
@@ -112,7 +114,30 @@ function editUser(selectedUser) {
     roleCodes.value = selectedUser.roles?.map(r => r.code) || [];
     fnctionCodes.value = selectedUser.fnctions?.map(f => f.code) || [];
     // Reset permissions object
+    selectedFnctionPermissionKeys.value = {};
     Object.keys(fnctionPermissions).forEach(key => delete fnctionPermissions[key]);
+
+    (selectedUser.fnctions || []).forEach(f => {
+        // Add function node
+        const fncPerms = {
+            checked: f.selectedPermission.length == f.permissions_count,
+            partialChecked: f.selectedPermission.length !== f.permissions_count
+        }
+        selectedFnctionPermissionKeys.value = {
+            ...selectedFnctionPermissionKeys.value,
+            [f.code]: fncPerms
+        };
+        // Add permission nodes
+        (f.permissions || []).forEach(p => {
+            if (f.selectedPermission.includes(p.code)) {
+                selectedFnctionPermissionKeys.value = {
+                    ...selectedFnctionPermissionKeys.value,
+                    [f.code + '.' + p.code]: { checked: true, partialChecked: false }
+                }
+            }
+        });
+    });
+    console.log(selectedFnctionPermissionKeys.value);
 
     // Load selected permissions for each function
     fnctionCodes.value.forEach(fnCode => {
@@ -131,25 +156,32 @@ function findIndexById(id) {
 async function saveUser() {
     submitted.value = true;
 
-    if (
-        !user.value.name ||
-        !user.value.email ||
-        (!user.value.id && !user.value.password)
-    )
+    if (!user.value.name || !user.value.email || (!user.value.id && !user.value.password)) {
         return;
+    }
 
+    // Extract function + permission keys from TreeSelect
+    const funcKeys = Object.keys(selectedFnctionPermissionKeys.value).filter(
+        key => selectedFnctionPermissionKeys.value[key].checked && key.includes(".")
+    );
 
-    const fnction_permission = [];
-    fnctionCodes.value.forEach(fnCode => {
-        const perms = fnctionPermissions[fnCode] || [];
-        perms.forEach(permCode => {
-            fnction_permission.push({
-                fnction_code: fnCode,
-                permission_code: permCode,
-                fnc_perm_code: `${fnCode}.${permCode}`
-            });
-        });
+    // Determine selected functions (pure function nodes without ".")
+    fnctionCodes.value = Object.keys(selectedFnctionPermissionKeys.value)
+        .filter(key => selectedFnctionPermissionKeys.value[key].checked && !key.includes("."));
+
+    // Group permissions by function code
+    const fnction_permission = {};
+    funcKeys.forEach(k => {
+        const [fnCode, permCode] = k.split(".");
+        if (!fnction_permission[fnCode]) fnction_permission[fnCode] = [];
+        fnction_permission[fnCode].push(permCode);
     });
+
+    // Convert to array of objects for API
+    const fnction_permission_array = Object.entries(fnction_permission).map(([fnCode, permission_codes]) => ({
+        fnction_code: fnCode,
+        permission_codes
+    }));
 
     const payload = {
         name: user.value.name,
@@ -158,50 +190,38 @@ async function saveUser() {
         group_code: groupCodes.value,
         role_code: roleCodes.value,
         fnction_code: fnctionCodes.value,
-        fnction_permission
+        fnction_permission: fnction_permission_array
     };
 
     try {
         let res;
         if (!user.value.id) {
-            // Add the newly created user to the list
             res = await UserService.create(payload);
             users.value.push(res.data);
-            console.log(user.value);
-            toast.add({
-                severity: "success",
-                summary: "Success",
-                detail: "User Created",
-                life: 3000,
-            });
+            toast.add({ severity: "success", summary: "Success", detail: "User Created", life: 3000 });
         } else {
-            // Update existing user
             res = await UserService.update(user.value.id, payload);
             const index = findIndexById(user.value.id);
             users.value[index] = res.data;
-
-            toast.add({
-                severity: "success",
-                summary: "Success",
-                detail: "User Updated",
-                life: 3000,
-            });
+            toast.add({ severity: "success", summary: "Success", detail: "User Updated", life: 3000 });
         }
 
         // Reset form
         userDialog.value = false;
         user.value = {};
         submitted.value = false;
+        selectedFnctionPermissionKeys.value = {};
     } catch (error) {
         console.error(error);
         toast.add({
             severity: "error",
             summary: "Error",
             detail: error.response?.data?.message || "Failed to save user",
-            life: 3000,
+            life: 3000
         });
     }
 }
+
 
 async function deleteUser() {
     try {
@@ -293,11 +313,23 @@ watch(fnctionCodes, (newFns) => {
     });
 }, { immediate: true });
 
-const fnctionMap = computed(() => {
-    return Object.fromEntries(fnctions.value.map(f => [f.code, f]));
+const listToString = (arr, key) => arr?.map(x => x[key]).join(', ') || '-';
+
+const fnctionTree = computed(() => {
+    return fnctions.value.map(fn => ({
+        key: fn.code,
+        label: fn.name,
+        children: (fn.permissions || []).map(p => ({
+            key: `${fn.code}.${p.code}`,
+            label: p.name,
+            data: {
+                fnction_code: fn.code,
+                permission_code: p.code
+            }
+        }))
+    }));
 });
 
-const listToString = (arr, key) => arr?.map(x => x[key]).join(', ') || '-';
 
 </script>
 
@@ -381,41 +413,34 @@ const listToString = (arr, key) => arr?.map(x => x[key]).join(', ') || '-';
                     <small v-if="submitted && !user.name" class="text-red-500">Name is required.</small>
                 </div>
                 <div>
-                    <label for="email" class="block font-bold mb-3">Email</label>
+                    <label for="email" class="block font-bold my-3">Email</label>
                     <InputText id="email" v-model.trim="user.email" :invalid="submitted && !user.email" fluid />
                     <small v-if="submitted && !user.email" class="text-red-500">Email is required.</small>
                 </div>
                 <div>
-                    <label for="password" class="block font-bold mb-3">Password</label>
+                    <label for="password" class="block font-bold my-3">Password</label>
                     <InputText id="password" type="password" v-model.trim="user.password"
                         :invalid="submitted && !user.password && !user.id" fluid />
                     <small v-if="submitted && !user.password && !user.id" class="text-red-500">Password is
                         required.</small>
                 </div>
                 <div class="col-span-2 mt-2">
-                    <div class="flex">
-                        <label for="group" class="font-bold mr-3 text-base">Groups</label>
-                        <MultiSelect v-model="groupCodes" display="chip" :options="groups"
-                            optionLabel="name" optionValue="code" placeholder="Groups" />
+                    <div>
+                        <label class="block font-bold mb-3">Roles</label>
+                        <MultiSelect v-model="roleCodes" :options="roles" optionValue="code" optionLabel="name"
+                            display="chip" placeholder="Select Roles" class="w-full" />
+                    </div>
+                    <div class="my-3">
+                        <label class="font-bold my-3">Functions</label>
+                        <TreeSelect v-model="selectedFnctionPermissionKeys" :options="fnctionTree"
+                            selectionMode="checkbox" display="chip" filter placeholder="Select functions"
+                            :propagateSelectionUp="true" :propagateSelectionDown="true" class="w-full" />
                     </div>
                     <div>
-                        <label for="role" class="font-bold mr-3">Roles</label>
-                        <MultiSelect v-model="roleCodes" display="chip" :options="roles" optionLabel="name"
-                            optionValue="code" placeholder="Roles" />
-                    </div>
-
-                    <div>
-                        <label for="fnction" class="font-bold mr-4">Functions</label>
-                        <MultiSelect v-model="fnctionCodes" display="chip" :options="fnctions" optionLabel="name"
-                            optionValue="code" placeholder="Functions" />
-
-                        <div v-for="fnCode in fnctionCodes" :key="fnCode" class="ml-4 mt-4">
-                            <label class="font-medium mr-4">{{ fnctionMap[fnCode]?.name }}</label>
-                            <MultiSelect v-model="fnctionPermissions[fnCode]"
-                                :options="fnctionMap[fnCode]?.permissions || []" optionLabel="name" optionValue="code"
-                                display="chip" placeholder="Permissions"
-                                :disabled="!fnctionMap[fnCode]?.permissions?.length" />
-                        </div>
+                        <label for="group" class="block font-bold my-3">Group</label>
+                        <MultiSelect v-model="groupCodes" :options="groups" optionLabel="name" optionValue="code"
+                            multiple selectionMode="checkbox" filter showClear display="chip"
+                            placeholder="Select Groups" class="w-full" />
                     </div>
                 </div>
 

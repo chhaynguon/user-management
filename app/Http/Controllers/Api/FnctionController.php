@@ -31,7 +31,7 @@ class FnctionController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'permission_codes' => ['nullable', 'array'],
-            'permission_codes.*' => ['string', 'exists:permissions,code'],
+            'permission_codes.*' => ['string', 'regex:/^[A-Z_]+$/'],
         ]);
 
         $fnction = Fnction::create($request->only('code', 'name', 'description'));
@@ -48,6 +48,7 @@ class FnctionController extends Controller
 
 
 
+
         return response()->json($fnction->load('permissions'), 201);
     }
 
@@ -61,7 +62,7 @@ class FnctionController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'permission_codes' => ['nullable', 'array'],
-            'permission_codes.*' => ['string', 'exists:permissions,code'],
+            'permission_codes.*' => ['string', 'regex:/^[A-Z_]+$/'],
         ]);
 
         // Update function
@@ -77,6 +78,7 @@ class FnctionController extends Controller
             }
             $fnction->permissions()->sync($syncData);
         }
+
 
 
         return response()->json($fnction->load('permissions'));
