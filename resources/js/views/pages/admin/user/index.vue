@@ -32,17 +32,28 @@ const deleteUsersDialog = ref(false);
 const userDialog = ref(false);
 const selectedUsers = ref([]);
 const submitted = ref(false);
-const selectedFnctionPermissionKeys = ref([]);
+const selectedFnctionPermissionKeys = ref({});
+const currentUserPermissions = ref([]);
 
 onMounted(async () => {
-    await Promise.all([
-        fetchUsers(),
-        fetchGroups(),
-        fetchRoles(),
-        fetchFnctions(),
-        fetchPermissions(),
-    ])
+    await fetchUsers(),
+        await fetchGroups(),
+        await fetchRoles(),
+        await fetchFnctions(),
+        await fetchPermissions()
+
+    try {
+        const res = await UserService.currentUserPermissions();
+        currentUserPermissions.value = res.data;
+    } catch (err) {
+        console.error(" Failed to fetch user permissions:", err);
+    }
 });
+
+const hasPermission = (permCode) => {
+    return currentUserPermissions.value.includes(permCode);
+};
+
 
 const fetchUsers = async () => {
     try {
@@ -99,11 +110,20 @@ function openNew() {
     roleCodes.value = [];
     fnctionCodes.value = [];
     submitted.value = false;
+
+    // RESET TreeSelect properly
+    selectedFnctionPermissionKeys.value = {};
+
+    // reset permission store
+    Object.keys(fnctionPermissions).forEach(key => delete fnctionPermissions[key]);
+
     userDialog.value = true;
 }
+
 function hideDialog() {
     userDialog.value = false;
     submitted.value = false;
+    selectedFnctionPermissionKeys.value = {};
     Object.keys(fnctionPermissions).forEach(key => delete fnctionPermissions[key]);
 }
 
@@ -118,24 +138,17 @@ function editUser(selectedUser) {
     Object.keys(fnctionPermissions).forEach(key => delete fnctionPermissions[key]);
 
     (selectedUser.fnctions || []).forEach(f => {
-        // Add function node
-        const fncPerms = {
-            checked: f.selectedPermission.length == f.permissions_count,
-            partialChecked: f.selectedPermission.length !== f.permissions_count
-        }
-        selectedFnctionPermissionKeys.value = {
-            ...selectedFnctionPermissionKeys.value,
-            [f.code]: fncPerms
-        };
+
         // Add permission nodes
         (f.permissions || []).forEach(p => {
             if (f.selectedPermission.includes(p.code)) {
                 selectedFnctionPermissionKeys.value = {
                     ...selectedFnctionPermissionKeys.value,
-                    [f.code + '.' + p.code]: { checked: true, partialChecked: false }
-                }
+                    [`${f.code}.${p.code}`]: { checked: true }
+                };
             }
         });
+
     });
     console.log(selectedFnctionPermissionKeys.value);
 
@@ -178,10 +191,13 @@ async function saveUser() {
     });
 
     // Convert to array of objects for API
-    const fnction_permission_array = Object.entries(fnction_permission).map(([fnCode, permission_codes]) => ({
-        fnction_code: fnCode,
-        permission_codes
-    }));
+    const fnction_permission_array = Object.entries(fnction_permission).map(
+        ([fnCode, permission_codes]) => ({
+            fnction_code: fnCode,
+            permission_codes
+        })
+    );
+
 
     const payload = {
         name: user.value.name,
@@ -280,8 +296,7 @@ function confirmDeleteSelected() {
 
 const refresh = async () => {
     try {
-        const res = await UserService.findAll();
-        users.value = res.data;
+        await fetchUsers();
         toast.add({
             severity: "success",
             summary: "Refreshed",
@@ -338,9 +353,10 @@ const fnctionTree = computed(() => {
         <div class="card">
             <Toolbar class="mb-6">
                 <template #start>
-                    <Button label="New" icon="pi pi-plus" severity="secondary" class="mr-2" @click="openNew" />
+                    <Button label="New" icon="pi pi-plus" severity="secondary" class="mr-2" @click="openNew"
+                        v-if="hasPermission('USER.NEW')" />
                     <Button label="Delete" icon="pi pi-trash" severity="secondary" @click="confirmDeleteSelected()"
-                        :disabled="!selectedUsers || !selectedUsers.length" />
+                        :disabled="!selectedUsers || !selectedUsers.length || !hasPermission('USER.DELETE')" />
                     <Button label="Refresh" icon="pi pi-refresh" severity="secondary" class="ml-2" @click="refresh" />
                 </template>
 
@@ -397,9 +413,10 @@ const fnctionTree = computed(() => {
 
                 <Column :exportable="false" style="min-width: 8rem">
                     <template #body="slotProps">
-                        <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editUser(slotProps.data)" />
+                        <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editUser(slotProps.data)"
+                            v-if="hasPermission('USER.EDIT')" />
                         <Button icon="pi pi-trash" outlined rounded severity="danger"
-                            @click="confirmDeleteUser(slotProps.data)" />
+                            @click="confirmDeleteUser(slotProps.data)" v-if="hasPermission('USER.DELETE')" />
                     </template>
                 </Column>
             </DataTable>
@@ -434,7 +451,8 @@ const fnctionTree = computed(() => {
                         <label class="font-bold my-3">Functions</label>
                         <TreeSelect v-model="selectedFnctionPermissionKeys" :options="fnctionTree"
                             selectionMode="checkbox" display="chip" filter placeholder="Select functions"
-                            :propagateSelectionUp="true" :propagateSelectionDown="true" class="w-full" />
+                            :propagateSelectionUp="true" :propagateSelectionDown="true" class="w-full"
+                            :disabled="!hasPermission('USER.NEW') && !hasPermission('USER.EDIT')" />
                     </div>
                     <div>
                         <label for="group" class="block font-bold my-3">Group</label>

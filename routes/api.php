@@ -22,11 +22,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
 // Admin-only routes
 Route::middleware(['auth:sanctum'])->group(function () {
-    Route::get('/users', [UserController::class, 'index']);
-    Route::get('/users/{id}', [UserController::class, 'show']);
-    Route::post('/users', [UserController::class, 'store']);
-    Route::put('/users/{id}', [UserController::class, 'update']);
-    Route::delete('/users/{id}', [UserController::class, 'destroy']);
+    Route::get('/users', [UserController::class, 'index'])->middleware('permission:USER.VIEW');
+    Route::get('/users/{id}', [UserController::class, 'show'])->middleware('permission:USER.VIEW');
+    Route::post('/users', [UserController::class, 'store'])->middleware('permission:CREATE');
+    Route::put('/users/{id}', [UserController::class, 'update'])->middleware('permission:USER.UPDATE');
+    Route::delete('/users/{id}', [UserController::class, 'destroy'])->middleware('permission:DELETE');
+
+    Route::get('/users/me/permissions', [UserController::class, 'currentUserPermissions']);
 });
 
 Route::prefix('permissions')->group(function () {

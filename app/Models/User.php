@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Laravel\Sanctum\HasApiTokens;
 use Carbon\Carbon;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasFactory, HasApiTokens;
+    use HasFactory, HasApiTokens, HasRoles;
 
     protected $fillable = ['name', 'email', 'password'];
 
@@ -103,5 +104,9 @@ class User extends Authenticatable
 
         // Merge all and remove duplicates
         return $direct->merge($rolePerms)->merge($groupPerms)->unique('code');
+    }
+    public function hasPermission($code)
+    {
+        return in_array($code, $this->permissions()->pluck('code')->toArray());
     }
 }

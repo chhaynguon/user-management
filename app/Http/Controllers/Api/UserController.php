@@ -15,12 +15,12 @@ class UserController extends Controller
 {
     public function index()
     {
-        $users = User::with(['groups', 'roles.permissions', 'fnctions' => function($q){
+        $users = User::with(['groups', 'roles.permissions', 'fnctions' => function ($q) {
             $q->withCount('permissions');
         }, 'permissions'])->orderByDesc('id')->get();
         // dd($users);
-        $data = $users->map(function($user){
-            $user->fnctions = $user->fnctions->map(function($func) use($user){
+        $data = $users->map(function ($user) {
+            $user->fnctions = $user->fnctions->map(function ($func) use ($user) {
                 $func->selectedPermission = UserHasPermission::whereUserId($user->id)->whereFnctionCode($func->code)->pluck('permission_code');
                 return $func;
             });
@@ -68,9 +68,9 @@ class UserController extends Controller
 
             'fnction_permission' => 'array',
             'fnction_permission.*.fnction_code' => 'required|string|exists:fnctions,code',
-            'fnction_permission.*.permission_code' => 'required|string',
-            'fnction_permission.*.fnc_perm_code' => 'required|string',
-            // 'fnction_permission.*.permission_code.*' => 'string|exists:permissions,code',
+            'fnction_permission.*.permission_codes' => 'required|array',
+            'fnction_permission.*.permission_codes.*' => 'string|exists:permissions,code',
+
         ]);
 
         $user = User::create([
@@ -93,11 +93,11 @@ class UserController extends Controller
 
             foreach ($validated['fnction_permission'] as $item) {
                 $syncData[] = [
-                        'user_id' => $user->id,
-                        'fnction_code' => $item['fnction_code'],
-                        'permission_code' => $item['permission_code'],
-                        'fnc_perm_code' => $item['fnc_perm_code'],
-                    ];
+                    'user_id' => $user->id,
+                    'fnction_code' => $item['fnction_code'],
+                    'permission_code' => $item['permission_code'],
+                    'fnc_perm_code' => $item['fnc_perm_code'],
+                ];
             }
 
             DB::table('user_has_permissions')->insert($syncData);
@@ -125,6 +125,7 @@ class UserController extends Controller
             'fnction_permission.*.fnction_code' => 'required|string|exists:fnctions,code',
             'fnction_permission.*.permission_codes' => 'required|array',
             'fnction_permission.*.permission_codes.*' => 'string|exists:permissions,code',
+
         ]);
 
         if ($request->filled('password')) {
@@ -167,9 +168,6 @@ class UserController extends Controller
                 ->find($user->id)
         );
     }
-
-
-
 
     public function destroy($id)
     {
@@ -261,5 +259,13 @@ class UserController extends Controller
             'role_permissions' => $rolePermissions,
             'group_role_permissions' => $groupRolePermissions,
         ]);
+    }
+    public function currentUserPermissions()
+    {
+        $user = request()->user();
+
+        $permissions = $user->permissions()->pluck('code')->toArray();
+
+        return response()->json($permissions);
     }
 }
