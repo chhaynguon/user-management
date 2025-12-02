@@ -90,23 +90,35 @@ class User extends Authenticatable
 
     public function allPermissions()
     {
-        // Direct permissions
-        $direct = $this->permissions()->get();
+        // Direct user permissions
+        $direct = $this->permissions()
+            ->get()
+            ->map(fn($p) => $p->pivot->fnction_code . '.' . $p->pivot->permission_code);
 
         // Permissions via roles
         $rolePerms = $this->roles()->with('permissions')->get()
-            ->pluck('permissions')->flatten();
+            ->pluck('permissions')
+            ->flatten()
+            ->map(fn($p) => $p->pivot->fnction_code . '.' . $p->pivot->permission_code);
 
         // Permissions via groups -> roles -> permissions
         $groupPerms = $this->groups()->with('roles.permissions')->get()
-            ->pluck('roles')->flatten()
-            ->pluck('permissions')->flatten();
+            ->pluck('roles')
+            ->flatten()
+            ->pluck('permissions')
+            ->flatten()
+            ->map(fn($p) => $p->pivot->fnction_code . '.' . $p->pivot->permission_code);
 
         // Merge all and remove duplicates
-        return $direct->merge($rolePerms)->merge($groupPerms)->unique('code');
+        return $direct->merge($rolePerms)->merge($groupPerms)->unique()->values();
     }
-    public function hasPermission($code)
+
+    public function hasPermission($fncPermCode)
     {
-        return in_array($code, $this->permissions()->pluck('code')->toArray());
+        [$fnction, $permission] = explode('.', $fncPermCode);
+        return $this->permissions()
+            ->wherePivot('fnction_code', $fnction)
+            ->wherePivot('permission_code', $permission)
+            ->exists();
     }
 }

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Fnction;
 use App\Models\User;
 use App\Models\UserHasPermission;
 use Illuminate\Http\Request;
@@ -13,47 +12,46 @@ use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
+    public function __construct()
+    {
+        // $this->middleware('has-permission:USER.VIEW')->only(['index']);
+        // $this->middleware('has-permission:USER.NEW')->only(['store']);
+    }
     public function index()
     {
         $users = User::with(['groups', 'roles.permissions', 'fnctions' => function ($q) {
             $q->withCount('permissions');
         }, 'permissions'])->orderByDesc('id')->get();
-        // dd($users);
         $data = $users->map(function ($user) {
             $user->fnctions = $user->fnctions->map(function ($func) use ($user) {
-                $func->selectedPermission = UserHasPermission::whereUserId($user->id)->whereFnctionCode($func->code)->pluck('permission_code');
+                $func->selectedPermission = UserHasPermission::whereUserId($user->id)
+                ->whereFnctionCode($func->code)
+                ->pluck('permission_code');
                 return $func;
             });
             return $user;
         });
-        return response()->json($users);
+        return response()->json($data);
     }
 
 
     public function show($id)
     {
-        $user = User::with(['groups', 'roles.permissions', 'permissions'])->findOrFail($id);
+        $user = User::with(['groups', 'roles.permissions', 'fnctions' => function ($q) {
+            $q->withCount('permissions');
+        }, 'permissions'])->findOrFail($id);
 
-        // Build user's functions with only their permissions
-        $fnCodes = $user->permissions->pluck('fnction_code')->unique();
+        // Map fnctions to include selected permissions
+        $user->fnctions = $user->fnctions->map(function ($func) use ($user) {
+            $func->selectedPermission = UserHasPermission::whereUserId($user->id)
+                ->whereFnctionCode($func->code)
+                ->pluck('permission_code');
+            return $func;
+        });
 
-        $user->fnctions = Fnction::whereIn('code', $fnCodes)
-            ->get()
-            ->map(function ($fn) use ($user) {
-                $fn->permissions = $user->permissions
-                    ->where('fnction_code', $fn->code)
-                    ->map(function ($perm) {
-                        return [
-                            'code' => $perm->code,
-                            'name' => $perm->name
-                        ];
-                    })
-                    ->values();
-                return $fn;
-            });
-
-        return response()->json($user, 200);
+        return response()->json($user);
     }
+
 
     public function store(Request $request)
     {
@@ -202,32 +200,61 @@ class UserController extends Controller
         $user = User::with([
             'roles.permissions',
             'groups.roles.permissions',
-            'fnctions.permissions'
         ])->findOrFail($id);
 
-        // Prepare functions array for TreeSelect
-        $functions = $user->fnctions->map(function ($fn) use ($user) {
-            $fnPerms = $fn->permissions->map(function ($p) use ($fn, $user) {
-                // Check if user has this permission in pivot
-                $selected = $user->permissions()
-                    ->wherePivot('fnction_code', $fn->code)
-                    ->wherePivot('permission_code', $p->code)
-                    ->exists();
+        // Collect all permissions the user has (direct + roles + group roles)
+        $allPermissions = collect();
 
-                return [
-                    'code' => $p->code,
-                    'name' => $p->name,
-                    'selected' => $selected,
-                    'fnc_perm_code' => "{$fn->code}.{$p->code}"
-                ];
+        // Direct user permissions
+        $user->permissions->each(fn($p) => $allPermissions->push([
+            'fnction_code' => $p->pivot->fnction_code,
+            'permission_code' => $p->code,
+            'source' => 'user',
+            'fnc_perm_code' => $p->pivot->fnc_perm_code,
+        ]));
+
+        // Permissions via user's roles
+        $user->roles->each(function ($role) use ($allPermissions) {
+            $role->permissions->each(fn($p) => $allPermissions->push([
+                'fnction_code' => $p->pivot->fnction_code,
+                'permission_code' => $p->code,
+                'source' => 'role',
+                'fnc_perm_code' => $p->pivot->fnc_perm_code,
+            ]));
+        });
+
+        // Permissions via groups → roles
+        $user->groups->each(function ($group) use ($allPermissions) {
+            $group->roles->each(function ($role) use ($allPermissions) {
+                $role->permissions->each(fn($p) => $allPermissions->push([
+                    'fnction_code' => $p->pivot->fnction_code,
+                    'permission_code' => $p->code,
+                    'source' => 'group_role',
+                    'fnc_perm_code' => $p->pivot->fnc_perm_code,
+                ]));
             });
+        });
+
+        // Group permissions by function
+        $fnctionMap = $allPermissions->groupBy('fnction_code');
+
+        // Build fnctions array
+        $fnctions = $fnctionMap->map(function ($perms, $fnCode) {
+            $permissions = $perms->map(fn($p) => [
+                'code' => $p['permission_code'],
+                'selected' => true,
+                'fnc_perm_code' => $p['fnc_perm_code']
+            ])->unique('code')->values();
+
+            $selectedPermission = $permissions->pluck('code')->toArray();
 
             return [
-                'code' => $fn->code,
-                'name' => $fn->name,
-                'permissions' => $fnPerms
+                'code' => $fnCode,
+                'name' => $fnCode, // Replace with real name if needed
+                'permissions' => $permissions,
+                'selectedPermission' => $selectedPermission,
             ];
-        });
+        })->values();
 
         // Flatten roles and group roles permissions for easy lookup if needed
         $rolePermissions = $user->roles->map(function ($role) {
@@ -255,17 +282,15 @@ class UserController extends Controller
             'email' => $user->email,
             'groups' => $user->groups,
             'roles' => $user->roles,
-            'fnctions' => $functions,
+            'fnctions' => $fnctions,
             'role_permissions' => $rolePermissions,
             'group_role_permissions' => $groupRolePermissions,
         ]);
     }
-    public function currentUserPermissions()
+
+    public function currentUserPermissions(Request $request)
     {
-        $user = request()->user();
-
-        $permissions = $user->permissions()->pluck('code')->toArray();
-
-        return response()->json($permissions);
+        $user = $request->user();
+        return response()->json($user->allPermissions());
     }
 }

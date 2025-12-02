@@ -36,11 +36,13 @@ const selectedFnctionPermissionKeys = ref({});
 const currentUserPermissions = ref([]);
 
 onMounted(async () => {
-    await fetchUsers(),
-        await fetchGroups(),
-        await fetchRoles(),
-        await fetchFnctions(),
-        await fetchPermissions()
+    await Promise.all([
+        fetchUsers(),
+        fetchGroups(),
+        fetchRoles(),
+        fetchFnctions(),
+        fetchPermissions(),
+    ]);
 
     try {
         const res = await UserService.currentUserPermissions();
@@ -50,8 +52,8 @@ onMounted(async () => {
     }
 });
 
-const hasPermission = (permCode) => {
-    return currentUserPermissions.value.includes(permCode);
+const hasPermission = (fncPermCode) => {
+    return currentUserPermissions.value.includes(fncPermCode);
 };
 
 
@@ -138,10 +140,11 @@ function editUser(selectedUser) {
     Object.keys(fnctionPermissions).forEach(key => delete fnctionPermissions[key]);
 
     (selectedUser.fnctions || []).forEach(f => {
-
+        const selectedPerms = f.selectedPermission || [];
         // Add permission nodes
         (f.permissions || []).forEach(p => {
-            if (f.selectedPermission.includes(p.code)) {
+
+            if (selectedPerms.includes(p.code)) {
                 selectedFnctionPermissionKeys.value = {
                     ...selectedFnctionPermissionKeys.value,
                     [`${f.code}.${p.code}`]: { checked: true }
@@ -353,10 +356,9 @@ const fnctionTree = computed(() => {
         <div class="card">
             <Toolbar class="mb-6">
                 <template #start>
-                    <Button label="New" icon="pi pi-plus" severity="secondary" class="mr-2" @click="openNew"
-                        v-if="hasPermission('USER.NEW')" />
+                    <Button label="New" icon="pi pi-plus" severity="secondary" class="mr-2" @click="openNew" />
                     <Button label="Delete" icon="pi pi-trash" severity="secondary" @click="confirmDeleteSelected()"
-                        :disabled="!selectedUsers || !selectedUsers.length || !hasPermission('USER.DELETE')" />
+                        :disabled="!selectedUsers || !selectedUsers.length" />
                     <Button label="Refresh" icon="pi pi-refresh" severity="secondary" class="ml-2" @click="refresh" />
                 </template>
 
@@ -413,10 +415,9 @@ const fnctionTree = computed(() => {
 
                 <Column :exportable="false" style="min-width: 8rem">
                     <template #body="slotProps">
-                        <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editUser(slotProps.data)"
-                            v-if="hasPermission('USER.EDIT')" />
+                        <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editUser(slotProps.data)" />
                         <Button icon="pi pi-trash" outlined rounded severity="danger"
-                            @click="confirmDeleteUser(slotProps.data)" v-if="hasPermission('USER.DELETE')" />
+                            @click="confirmDeleteUser(slotProps.data)" />
                     </template>
                 </Column>
             </DataTable>
@@ -445,20 +446,19 @@ const fnctionTree = computed(() => {
                     <div>
                         <label class="block font-bold mb-3">Roles</label>
                         <MultiSelect v-model="roleCodes" :options="roles" optionValue="code" optionLabel="name"
-                            display="chip" placeholder="Select Roles" class="w-full" />
+                            display="chip" placeholder="Select Roles" class="w-full" showClear />
                     </div>
                     <div class="my-3">
                         <label class="font-bold my-3">Functions</label>
                         <TreeSelect v-model="selectedFnctionPermissionKeys" :options="fnctionTree"
-                            selectionMode="checkbox" display="chip" filter placeholder="Select functions"
-                            :propagateSelectionUp="true" :propagateSelectionDown="true" class="w-full"
-                            :disabled="!hasPermission('USER.NEW') && !hasPermission('USER.EDIT')" />
+                            selectionMode="checkbox" display="chip" filter showClear placeholder="Select functions"
+                            :propagateSelectionUp="true" :propagateSelectionDown="true" class="w-full" />
                     </div>
                     <div>
                         <label for="group" class="block font-bold my-3">Group</label>
                         <MultiSelect v-model="groupCodes" :options="groups" optionLabel="name" optionValue="code"
-                            multiple selectionMode="checkbox" filter showClear display="chip"
-                            placeholder="Select Groups" class="w-full" />
+                            multiple selectionMode="checkbox" showClear display="chip" placeholder="Select Groups"
+                            class="w-full" />
                     </div>
                 </div>
 
