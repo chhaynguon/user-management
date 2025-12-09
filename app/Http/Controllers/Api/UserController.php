@@ -12,11 +12,6 @@ use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
-    public function __construct()
-    {
-        // $this->middleware('has-permission:USER.VIEW')->only(['index']);
-        // $this->middleware('has-permission:USER.NEW')->only(['store']);
-    }
     public function index()
     {
         $users = User::with(['groups', 'roles.permissions', 'fnctions' => function ($q) {

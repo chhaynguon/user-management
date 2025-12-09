@@ -44,12 +44,12 @@ onMounted(async () => {
         fetchPermissions(),
     ]);
 
-    try {
-        const res = await UserService.currentUserPermissions();
-        currentUserPermissions.value = res.data;
-    } catch (err) {
-        console.error(" Failed to fetch user permissions:", err);
-    }
+    // try {
+    //     const res = await UserService.currentUserPermissions();
+    //     currentUserPermissions.value = res.data;
+    // } catch (err) {
+    //     console.error(" Failed to fetch user permissions:", err);
+    // }
 });
 
 const hasPermission = (fncPermCode) => {
@@ -373,7 +373,7 @@ const fnctionTree = computed(() => {
                 :rowsPerPageOptions="[5, 10, 25]"
                 currentPageReportTemplate="Showing {first} to {last} of {totalRecords} users">
                 <template #header>
-                    <div class="flex flex-wrap gap-2 items-center justify-between">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
                         <h4 class="m-0">Manage Users</h4>
                         <IconField>
                             <InputIcon>
@@ -426,17 +426,17 @@ const fnctionTree = computed(() => {
         <Dialog v-model:visible="userDialog" :style="{ width: '800px' }" header="User Details" :modal="true">
             <div>
                 <div>
-                    <label for="name" class="block font-bold mb-3">Username</label>
+                    <label for="name" class="block mb-3 font-bold">Username</label>
                     <InputText id="name" v-model.trim="user.name" autofocus :invalid="submitted && !user.name" fluid />
                     <small v-if="submitted && !user.name" class="text-red-500">Name is required.</small>
                 </div>
                 <div>
-                    <label for="email" class="block font-bold my-3">Email</label>
+                    <label for="email" class="block my-3 font-bold">Email</label>
                     <InputText id="email" v-model.trim="user.email" :invalid="submitted && !user.email" fluid />
                     <small v-if="submitted && !user.email" class="text-red-500">Email is required.</small>
                 </div>
                 <div>
-                    <label for="password" class="block font-bold my-3">Password</label>
+                    <label for="password" class="block my-3 font-bold">Password</label>
                     <InputText id="password" type="password" v-model.trim="user.password"
                         :invalid="submitted && !user.password && !user.id" fluid />
                     <small v-if="submitted && !user.password && !user.id" class="text-red-500">Password is
@@ -444,18 +444,18 @@ const fnctionTree = computed(() => {
                 </div>
                 <div class="col-span-2 mt-2">
                     <div>
-                        <label class="block font-bold mb-3">Roles</label>
+                        <label class="block mb-3 font-bold">Roles</label>
                         <MultiSelect v-model="roleCodes" :options="roles" optionValue="code" optionLabel="name"
                             display="chip" placeholder="Select Roles" class="w-full" showClear />
                     </div>
                     <div class="my-3">
-                        <label class="font-bold my-3">Functions</label>
+                        <label class="my-3 font-bold">Functions</label>
                         <TreeSelect v-model="selectedFnctionPermissionKeys" :options="fnctionTree"
-                            selectionMode="checkbox" display="chip" filter showClear placeholder="Select functions"
+                            selectionMode="checkbox" display="chip" showClear placeholder="Select functions"
                             :propagateSelectionUp="true" :propagateSelectionDown="true" class="w-full" />
                     </div>
                     <div>
-                        <label for="group" class="block font-bold my-3">Group</label>
+                        <label for="group" class="block my-3 font-bold">Group</label>
                         <MultiSelect v-model="groupCodes" :options="groups" optionLabel="name" optionValue="code"
                             multiple selectionMode="checkbox" showClear display="chip" placeholder="Select Groups"
                             class="w-full" />
